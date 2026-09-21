@@ -254,6 +254,17 @@
     justify-content: flex-end;
     margin-top: 1.5rem;
   }
+  /* Bouton de suppression (mode édition uniquement) : le DSFR ne fournit
+     pas de variante "danger" pour fr-btn, on réutilise donc le rouge déjà
+     utilisé ailleurs dans le widget pour l'action "Refuser". Poussé à
+     gauche du pied de page (margin-right: auto) pour le séparer visuellement
+     d'Annuler/Enregistrer. */
+  .newreq-dialog__footer .newreq-delete-btn {
+    margin-right: auto;
+    background-color: #ce0500;
+    color: #fff;
+  }
+  .newreq-dialog__footer .newreq-delete-btn:hover { background-color: #a80400; }
 
   /* Pied de page du widget : crédit, comme dans FSJ. */
   .widget-footer {
@@ -688,6 +699,7 @@
       <div id="newRequestBody"></div>
       <p class="fr-hint-text" id="newRequestStatus" aria-live="polite"></p>
       <div class="newreq-dialog__footer">
+        <button class="fr-btn fr-btn--tertiary newreq-delete-btn fr-icon-delete-line fr-btn--icon-left" type="button" id="newRequestDeleteBtn" hidden>Supprimer la demande</button>
         <button class="fr-btn fr-btn--secondary" type="button" id="newRequestCancelBtn">Annuler</button>
         <button class="fr-btn" type="submit" id="newRequestSubmitBtn">Créer la demande</button>
       </div>
@@ -1804,6 +1816,7 @@
   var newRequestStatus = document.getElementById('newRequestStatus');
   var newRequestTitle = document.getElementById('newRequestTitle');
   var newRequestSubmitBtn = document.getElementById('newRequestSubmitBtn');
+  var newRequestDeleteBtn = document.getElementById('newRequestDeleteBtn');
   var currentNewRequestPage = null;
   // null en création ; l'id de la ligne éditée en modification — c'est ce
   // qui distingue les deux modes du même formulaire/modale partagés (voir
@@ -1816,6 +1829,7 @@
     currentNewRequestRowId = null;
     newRequestForm.reset();
     newRequestStatus.textContent = '';
+    newRequestDeleteBtn.hidden = true;
   }
 
   function openNewRequestModal(pageKey) {
@@ -1832,6 +1846,7 @@
       : 'Nouvelle demande de réservation de matériel';
     newRequestSubmitBtn.textContent = 'Créer la demande';
     newRequestStatus.textContent = '';
+    newRequestDeleteBtn.hidden = true;
     newRequestBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
     newRequestOverlay.hidden = false;
     buildNewRequestForm(pageKey, cfg, objetLabel).then(function (html) {
@@ -1858,6 +1873,7 @@
       : 'Modifier la demande de réservation de matériel';
     newRequestSubmitBtn.textContent = 'Enregistrer les modifications';
     newRequestStatus.textContent = '';
+    newRequestDeleteBtn.hidden = false;
     newRequestBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
     newRequestOverlay.hidden = false;
     Promise.all([buildNewRequestForm(pageKey, cfg, objetLabel), fetchRawRow(pageKey, rowId)]).then(function (results) {
@@ -2068,10 +2084,30 @@
     });
   }
 
+  // Supprime la demande en cours d'édition (bouton visible uniquement en
+  // mode modification, voir openEditRequestModal) : demande confirmation,
+  // puis RemoveRecord sur la ligne Grist correspondante.
+  function deleteCurrentRequest() {
+    if (!currentNewRequestPage || currentNewRequestRowId === null) return;
+    var pageKey = currentNewRequestPage;
+    var rowId = currentNewRequestRowId;
+    var cfg = settings[pageKey];
+    if (!window.confirm('Supprimer définitivement cette demande ? Cette action est irréversible.')) return;
+    newRequestStatus.textContent = 'Suppression…';
+    grist.docApi.applyUserActions([['RemoveRecord', cfg.table, rowId]]).then(function () {
+      closeNewRequestModal();
+      loadPageData(pageKey);
+    }).catch(function (e) {
+      newRequestStatus.textContent = '';
+      window.alert('Impossible de supprimer la demande : ' + (e && e.message ? e.message : e));
+    });
+  }
+
   document.getElementById('vehNewRequestBtn').addEventListener('click', function () { openNewRequestModal('vehicules'); });
   document.getElementById('matNewRequestBtn').addEventListener('click', function () { openNewRequestModal('materiels'); });
   document.getElementById('newRequestCloseBtn').addEventListener('click', closeNewRequestModal);
   document.getElementById('newRequestCancelBtn').addEventListener('click', closeNewRequestModal);
+  newRequestDeleteBtn.addEventListener('click', deleteCurrentRequest);
   newRequestOverlay.addEventListener('click', function (e) {
     if (e.target === newRequestOverlay) closeNewRequestModal();
   });

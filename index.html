@@ -55,13 +55,10 @@
      l'identique de FSJ. */
   #header-navigation .fr-nav__link { cursor: pointer; }
 
-  /* Barre au-dessus des pages : accès aux paramètres, hors du menu
-     principal (qui ne doit contenir que les deux pages demandées). */
-  .req-topbar {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.5rem;
-  }
+  /* Le bloc marque du header (logo + intitulé) sert aussi de geste
+     d'accès caché au panneau Paramètres (5 clics rapprochés) : pas
+     d'indice visuel volontaire (voir #brandGesture dans le script), on
+     laisse simplement le curseur normal de fr-enlarge-link. */
 
   /* Menu déroulant (filtre Décision) : bouton + liste positionnée en
      absolu juste dessous, fermée par défaut. Repris à l'identique de
@@ -208,7 +205,7 @@
   <div class="fr-header__body">
     <div class="fr-container">
       <div class="fr-header__body-row">
-        <div class="fr-header__brand fr-enlarge-link">
+        <div class="fr-header__brand fr-enlarge-link" id="brandGesture">
           <div class="fr-header__brand-top">
             <div class="fr-header__logo">
               <p class="fr-logo">Ministère<br>de l'Intérieur</p>
@@ -239,12 +236,6 @@
 </header>
 
 <div class="widget-wrap">
-
-  <div class="req-topbar">
-    <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-settings-5-line fr-btn--icon-left" id="openSettingsBtn" type="button">
-      Paramètres
-    </button>
-  </div>
 
   <!-- Page "Réservations de véhicules" -->
   <div id="panelVehicules">
@@ -466,7 +457,7 @@
   var panelVehicules = document.getElementById('panelVehicules');
   var panelMateriels = document.getElementById('panelMateriels');
   var panelSettings = document.getElementById('panelSettings');
-  var openSettingsBtn = document.getElementById('openSettingsBtn');
+  var brandGesture = document.getElementById('brandGesture');
   var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
   var settingsStatusZone = document.getElementById('settingsStatusZone');
@@ -650,8 +641,31 @@
     panelSettings.hidden = true;
     setView(viewBeforeSettings);
   }
-  openSettingsBtn.addEventListener('click', openSettings);
   cancelSettingsBtn.addEventListener('click', closeSettings);
+
+  // ---- Accès aux paramètres : geste caché sur le bloc marque -----------
+  //
+  // Pas de bouton "Paramètres" visible : conformément à la demande, seuls
+  // les utilisateurs qui savent qu'il faut cliquer 5 fois, rapidement, sur
+  // le bloc marque du header (logo + "Division réserves jeunesse")
+  // ouvrent le panneau Paramètres. Ce n'est PAS un contrôle d'accès réel
+  // (rien n'empêche techniquement quelqu'un d'ouvrir ce panneau) : l'API
+  // des widgets personnalisés Grist n'expose ni le rôle du visiteur sur
+  // le document (Owner/Editor/Viewer), ni les attributs user.* définis
+  // dans les règles d'accès (ex. user.Droits.Gpe) — voir les échanges
+  // avec l'équipe projet si ce point doit évoluer.
+  var brandClickCount = 0;
+  var brandClickResetTimer = null;
+  brandGesture.addEventListener('click', function () {
+    brandClickCount++;
+    if (brandClickResetTimer) clearTimeout(brandClickResetTimer);
+    brandClickResetTimer = setTimeout(function () { brandClickCount = 0; }, 1500);
+    if (brandClickCount >= 5) {
+      brandClickCount = 0;
+      clearTimeout(brandClickResetTimer);
+      openSettings();
+    }
+  });
 
   function pageConfigFromForm(pageKey) {
     var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';

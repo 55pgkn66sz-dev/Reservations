@@ -130,6 +130,30 @@
   .req-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .req-actions .fr-btn { white-space: nowrap; }
 
+  /* Met en évidence, parmi les trois boutons de décision, celui qui
+     correspond à l'état actuel de la demande (fond plein coloré, au
+     lieu du simple style tertiaire) — plutôt qu'une colonne Décision
+     séparée, l'état se lit directement sur le bouton actif. */
+  .req-actions .fr-btn[aria-pressed="true"] {
+    color: #fff;
+  }
+  .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: #18753c; }
+  .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: #ce0500; }
+  .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: #b34000; }
+
+  /* Valider bloqué par un conflit (colonne Conflit renseignée) : bouton
+     volontairement laissé focusable/survolable (aria-disabled, pas
+     l'attribut disabled) pour que l'infobulle de détail reste
+     accessible — voir le commentaire dans renderPage(). */
+  .req-actions .fr-btn[aria-disabled="true"] {
+    color: #b34000;
+    cursor: not-allowed;
+  }
+  .req-actions .fr-btn[aria-disabled="true"]:hover,
+  .req-actions .fr-btn[aria-disabled="true"]:focus {
+    background-color: transparent;
+  }
+
   .fr-table caption { text-align: left; font-weight: 700; }
 
   /* Le tableau des demandes défile horizontalement plutôt que de
@@ -323,7 +347,12 @@
             <label class="fr-label" for="veh_col_commentaire">Commentaire (optionnel)</label>
             <select class="fr-select" id="veh_col_commentaire" data-page="vehicules" data-role="commentaire"></select>
           </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_conflit">Conflit (optionnel)</label>
+            <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
+          </div>
         </div>
+        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), l'action Valider est bloquée et son détail s'affiche en infobulle.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -384,7 +413,12 @@
             <label class="fr-label" for="mat_col_commentaire">Commentaire (optionnel)</label>
             <select class="fr-select" id="mat_col_commentaire" data-page="materiels" data-role="commentaire"></select>
           </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_conflit">Conflit (optionnel)</label>
+            <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
+          </div>
         </div>
+        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), l'action Valider est bloquée et son détail s'affiche en infobulle.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -441,12 +475,12 @@
   var viewBeforeSettings = 'vehicules';
 
   // Rôles de colonnes communs aux deux pages (+ 'quantite', propre aux matériels).
-  var ROLES = ['demandeur', 'dateDemande', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'commentaire'];
+  var ROLES = ['demandeur', 'dateDemande', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'commentaire', 'conflit'];
 
   function defaultPageConfig() {
     return {
       table: '',
-      col: { demandeur: '', dateDemande: '', objet: '', quantite: '', dateDebut: '', dateFin: '', motif: '', decision: '', commentaire: '' },
+      col: { demandeur: '', dateDemande: '', objet: '', quantite: '', dateDebut: '', dateFin: '', motif: '', decision: '', commentaire: '', conflit: '' },
       valeurs: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée' }
     };
   }
@@ -697,7 +731,7 @@
         var el = document.getElementById(prefix + 'col_' + role);
         if (!el) return;
         var current = (cfg.table === tableId) ? cfg.col[role] : '';
-        fillSelectWithOptions(el, columns, current, role === 'quantite' || role === 'commentaire' ? '(aucune)' : 'Choisir une colonne…');
+        fillSelectWithOptions(el, columns, current, role === 'quantite' || role === 'commentaire' || role === 'conflit' ? '(aucune)' : 'Choisir une colonne…');
       });
     }).catch(function (e) {
       showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + (e && e.message ? e.message : e));
@@ -842,15 +876,6 @@
     return dd + '/' + mm + '/' + d.getFullYear();
   }
 
-  function badgeClassForDecision(value) {
-    var k = normalizeKey(value);
-    if (!k) return 'fr-badge fr-badge--sm';
-    if (k.indexOf('VALID') > -1 || k.indexOf('ACCEPT') > -1 || k.indexOf('APPROUV') > -1 || k.indexOf('AUTORIS') > -1) return 'fr-badge fr-badge--sm fr-badge--success';
-    if (k.indexOf('REFUS') > -1 || k.indexOf('REJET') > -1 || k.indexOf('ANNUL') > -1) return 'fr-badge fr-badge--sm fr-badge--error';
-    if (k.indexOf('ATTENTE') > -1 || k.indexOf('COURS') > -1 || k.indexOf('INSTRUCTION') > -1) return 'fr-badge fr-badge--sm fr-badge--warning';
-    return 'fr-badge fr-badge--sm fr-badge--info';
-  }
-
   function updateDecision(pageKey, rowId, newValue) {
     var cfg = settings[pageKey];
     var action = ['UpdateRecord', cfg.table, rowId, (function () { var o = {}; o[cfg.col.decision] = newValue; return o; })()];
@@ -920,43 +945,65 @@
     var hasCommentaire = !!cfg.col.commentaire;
 
     // Largeurs proportionnées (en %) des colonnes, dans leur ordre
-    // d'affichage — la colonne Action (boutons de décision) est placée
-    // en premier, pour rester visible même sur un panneau de widget
-    // étroit, plutôt que de risquer d'être coupée tout à droite.
+    // d'affichage — la colonne Décision (boutons de décision) est
+    // placée en premier, pour rester visible même sur un panneau de
+    // widget étroit, plutôt que de risquer d'être coupée tout à droite.
     var colWidths = hasCommentaire
-      ? [9, 10, 10, 13, 12, 19, 10, 17]
-      : [10, 12, 11, 15, 14, 26, 12];
+      ? [14, 13, 17, 15, 24, 17]
+      : [16, 15, 20, 18, 31];
 
-    var headCells = ['Action', 'Demandeur', 'Date de la demande', escapeHtml(objetLabel), 'Période souhaitée', 'Motif', 'Décision'];
+    var headCells = ['Décision', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
     if (hasCommentaire) headCells.push('Commentaire');
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
     }).join('') + '</tr>';
 
+    var hasConflitCol = !!cfg.col.conflit;
+
     var body = rows.map(function (r) {
       var objet = textOf(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
       var periode = fmtDate(r.dateDebut) + ' → ' + fmtDate(r.dateFin);
       var decisionText = textOf(r.decision);
-      var badge = '<span class="' + badgeClassForDecision(decisionText) + '">' + escapeHtml(decisionText || cfg.valeurs.attente) + '</span>';
 
       var isValidee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.validee);
       var isRefusee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.refusee);
       var isAttente = !decisionText || normalizeKey(decisionText) === normalizeKey(cfg.valeurs.attente);
 
-      var actions = '<div class="req-actions">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" ' + (isValidee ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" ' + (isRefusee ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" ' + (isAttente ? 'disabled' : '') + '></button>' +
+      // Conflit détecté (colonne "Conflit" configurée et renseignée pour
+      // cette demande) : bloque l'action Valider (sauf si elle est déjà
+      // la décision en vigueur — rien à valider dans ce cas) et affiche
+      // le détail en infobulle DSFR, sur le modèle des infobulles de FSJ
+      // (span.fr-tooltip relié par aria-describedby).
+      var conflitText = hasConflitCol ? textOf(r.conflit) : '';
+      var validerBlocked = !!conflitText && !isValidee;
+      var validerIcon = validerBlocked ? 'fr-icon-alert-line' : 'fr-icon-check-line';
+      var validerTitle = validerBlocked ? 'Validation impossible : conflit détecté' : 'Valider';
+      var tooltipId = conflitText ? ('conflitTip_' + pageKey + '_' + r.id) : '';
+
+      // Le bouton correspondant au choix actuel est mis en évidence
+      // (aria-pressed + couleur pleine, cf. CSS .req-actions [aria-pressed])
+      // et désactivé (inutile de re-cliquer sur l'état déjà en vigueur).
+      // Un conflit non résolu utilise aria-disabled (pas l'attribut HTML
+      // disabled) afin que le bouton reste focusable/survolable : c'est
+      // ce qui permet à l'infobulle de detail de s'afficher malgré tout ;
+      // le gestionnaire de clic respecte aria-disabled comme un blocage.
+      var actions = '<div class="req-actions" role="group" aria-label="Décision">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + validerIcon + '" title="' + escapeHtml(validerTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '"' +
+        (isValidee ? ' disabled' : '') +
+        (validerBlocked ? ' aria-disabled="true"' : '') +
+        (tooltipId ? ' aria-describedby="' + tooltipId + '"' : '') +
+        '></button>' +
+        (tooltipId ? '<span class="fr-tooltip fr-placement" id="' + tooltipId + '" role="tooltip">' + escapeHtml(conflitText) + '</span>' : '') +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
         '</div>';
 
       return '<tr data-row-id="' + r.id + '">' +
         '<td>' + actions + '</td>' +
         '<td>' + escapeHtml(textOf(r.demandeur)) + '</td>' +
-        '<td>' + escapeHtml(fmtDate(r.dateDemande)) + '</td>' +
         '<td>' + escapeHtml(objet) + '</td>' +
         '<td>' + escapeHtml(periode) + '</td>' +
         '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
-        '<td>' + badge + '</td>' +
         (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
         '</tr>';
     }).join('');
@@ -972,6 +1019,7 @@
 
     zone.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
+        if (btn.getAttribute('aria-disabled') === 'true') return; // bloqué par un conflit
         var tr = btn.closest('tr[data-row-id]');
         var rowId = Number(tr.getAttribute('data-row-id'));
         var target = btn.getAttribute('data-action') === 'validee' ? cfg.valeurs.validee

@@ -36,6 +36,10 @@
 <!-- API du widget Grist -->
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
+<!-- jsPDF : génération du PDF "Occupants par UV" (une page paysage par UV),
+     voir generateOccupantsPdf() plus bas. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
 <style>
   :root {
     --bleu-france: #000091;
@@ -181,6 +185,31 @@
   .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: var(--statut-reintegre); }
 
   .fr-table caption { text-align: left; font-weight: 700; }
+
+  /* ---- Page "Hébergement" : une carte par UV, avec ses occupants
+     affichés en badges (voir renderOccupantsPage) plutôt qu'un tableau,
+     puisqu'il n'y a ici qu'une seule "colonne" de contenu par UV. ---- */
+  .uv-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: 1rem;
+  }
+  .uv-card {
+    border: 1px solid var(--border-default-grey);
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 1rem;
+  }
+  .uv-card__header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .uv-card__title { margin: 0; font-size: 1.1em; font-weight: 700; }
+  .uv-card__occupants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .uv-card__empty { color: var(--text-mention-grey); font-size: 0.9em; font-style: italic; }
 
   /* Le tableau des demandes défile horizontalement plutôt que de
      comprimer ou de rogner ses colonnes, à partir d'une largeur d'écran
@@ -363,6 +392,8 @@
       padding-bottom: 0.7rem;
     }
     .newreq-dialog__footer .newreq-delete-btn { margin-right: 0; margin-top: 0.75rem; }
+
+    .uv-grid { grid-template-columns: 1fr; }
   }
 
   .settings-section + .settings-section { margin-top: 2rem; }
@@ -497,6 +528,9 @@
           <li class="fr-nav__item">
             <button class="fr-nav__link" id="navMateriels" type="button">Réservations de matériels</button>
           </li>
+          <li class="fr-nav__item">
+            <button class="fr-nav__link" id="navOccupants" type="button">Hébergement</button>
+          </li>
         </ul>
       </nav>
     </div>
@@ -567,6 +601,35 @@
     </div>
 
     <div id="matZone"></div>
+  </div>
+
+  <!-- Page "Occupants par UV" : présentation en cartes (une par UV), les
+       occupants de chaque UV affichés en badges (voir renderOccupantsPage
+       côté script) — pas de création/édition ici, uniquement de la
+       consultation et un export PDF (une page paysage par UV). -->
+  <div id="panelOccupants" hidden>
+    <h2 class="fr-h6">Occupants par UV</h2>
+
+    <div class="req-toolbar fr-mb-2w">
+      <button class="fr-btn fr-btn--sm fr-icon-file-pdf-line fr-btn--icon-left" id="occGeneratePdfBtn" type="button">
+        Générer le PDF
+      </button>
+      <div class="dropdown-menu" id="occFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="occFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="occFilterList">
+          Bât.
+        </button>
+        <ul class="dropdown-menu__list" id="occFilterList" role="menu" aria-label="Filtrer les UV par bâtiment" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="occRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="occReloadBtn" type="button" title="Recharger les occupants depuis la table Grist">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="occCount"></p>
+    </div>
+
+    <div id="occZone"></div>
   </div>
 
   <!-- Zone "Configuration" : regroupe, derrière le geste caché sur le bloc
@@ -858,6 +921,29 @@
         </div>
       </div>
 
+      <div class="settings-section">
+        <p class="section-title">Occupants par UV</p>
+        <div class="settings-grid">
+          <div class="fr-select-group">
+            <label class="fr-label" for="occ_table">Table Grist</label>
+            <select class="fr-select" id="occ_table" data-page="occupants"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="occ_col_batiment">Bât.</label>
+            <select class="fr-select" id="occ_col_batiment" data-page="occupants" data-role="batiment"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="occ_col_uv">UV</label>
+            <select class="fr-select" id="occ_col_uv" data-page="occupants" data-role="uv"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="occ_col_occupants">Occupants</label>
+            <select class="fr-select" id="occ_col_occupants" data-page="occupants" data-role="occupants"></select>
+          </div>
+        </div>
+        <p class="fr-hint-text fr-mt-2w">« Bât. » sert à créer un filtre par bâtiment sur la page « Occupants par UV ». « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
+      </div>
+
       <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
         <li><button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer les paramètres</button></li>
         <li><button class="fr-btn fr-btn--secondary" id="cancelSettingsBtn" type="button">Fermer sans enregistrer</button></li>
@@ -909,8 +995,10 @@
 
   var navVehicules = document.getElementById('navVehicules');
   var navMateriels = document.getElementById('navMateriels');
+  var navOccupants = document.getElementById('navOccupants');
   var panelVehicules = document.getElementById('panelVehicules');
   var panelMateriels = document.getElementById('panelMateriels');
+  var panelOccupants = document.getElementById('panelOccupants');
   var panelSettings = document.getElementById('panelSettings');
   var brandGesture = document.getElementById('brandGesture');
   var closeConfigBtn = document.getElementById('closeConfigBtn');
@@ -918,7 +1006,7 @@
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
   var settingsStatusZone = document.getElementById('settingsStatusZone');
 
-  var currentView = 'vehicules'; // 'vehicules' | 'materiels' (la vue active parmi les deux pages du menu principal)
+  var currentView = 'vehicules'; // 'vehicules' | 'materiels' | 'occupants' (la vue active parmi les pages du menu principal)
   var viewBeforeSettings = 'vehicules';
 
   // Rôles de colonnes des deux pages de demandes (+ 'quantite', propre aux matériels).
@@ -930,38 +1018,47 @@
   var MATERIEL_ROLES = ROLES.concat(['materielAccorde']);
   // Rôles de colonnes des deux pages de gestion du parc (onglets de la zone Configuration).
   var GESTION_ROLES = ['identifiant', 'type', 'etat'];
+  // Rôles de colonnes de la page "Occupants par UV" : Bât. (sert à créer
+  // un filtre), UV, Occupants (colonne Liste de choix / Références
+  // multiples, une carte par UV avec un badge par occupant — voir
+  // renderOccupantsPage).
+  var OCCUPANTS_ROLES = ['batiment', 'uv', 'occupants'];
 
-  // Registre des 4 pages du widget : les 2 pages de demandes (menu
-  // principal) et les 2 pages de gestion du parc (onglets de la zone
-  // Configuration, accessible par le geste caché) — regroupe tout ce qui
-  // les distingue, pour que le reste du script (filtres, chargement,
-  // réglages) reste générique et commun aux deux familles de pages.
-  var ALL_PAGES = ['vehicules', 'materiels', 'gestionVehicules', 'gestionMateriels'];
-  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
-  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
-  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
+  // Registre des pages du widget : les 2 pages de demandes et la page
+  // "Occupants par UV" (menu principal), plus les 2 pages de gestion du
+  // parc (onglets de la zone Configuration, accessible par le geste
+  // caché) — regroupe tout ce qui les distingue, pour que le reste du
+  // script (filtres, chargement, réglages) reste générique et commun à
+  // toutes les pages.
+  var ALL_PAGES = ['vehicules', 'materiels', 'occupants', 'gestionVehicules', 'gestionMateriels'];
+  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, occupants: OCCUPANTS_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
+  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', occupants: 'occ', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
+  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', occupants: 'occ_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
   var PAGE_REQUIRED_COLS = {
     // Demandeur et Véhicule sont optionnels côté véhicules (voir
     // PAGE_OPTIONAL_COLS ci-dessous) : seule Décision reste obligatoire
     // pour que la page soit considérée configurée.
     vehicules: ['decision'],
     materiels: ['demandeur', 'objet', 'decision'],
+    occupants: ['batiment', 'uv', 'occupants'],
     gestionVehicules: ['identifiant', 'type', 'etat'],
     gestionMateriels: ['identifiant', 'type', 'etat']
   };
   var PAGE_OPTIONAL_COLS = {
     vehicules: ['demandeur', 'objet', 'quantite', 'conflit'],
     materiels: ['quantite', 'conflit', 'materielAccorde'],
+    occupants: [],
     gestionVehicules: [],
     gestionMateriels: []
   };
   var PAGE_VALEURS_DEFAULT = {
     vehicules: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
     materiels: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
+    occupants: {},
     gestionVehicules: { disponible: 'Disponible', indisponible: 'Indisponible' },
     gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' }
   };
-  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', gestionVehicules: 'gestion', gestionMateriels: 'gestion' };
+  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', occupants: 'occupants', gestionVehicules: 'gestion', gestionMateriels: 'gestion' };
 
   // gristHelper_Display / gristHelper_Display2… sont des colonnes formule
   // internes que Grist crée automatiquement pour afficher le texte d'une
@@ -1008,6 +1105,7 @@
   var FILTER_KEYS = {
     vehicules: ['decision', 'demandeur'],
     materiels: ['decision', 'demandeur'],
+    occupants: ['batiment'],
     gestionVehicules: ['etat', 'type'],
     gestionMateriels: ['etat', 'type']
   };
@@ -1020,39 +1118,43 @@
   var filterFieldLabels = {
     vehicules: { decision: 'Etat', demandeur: 'Demandeur' },
     materiels: { decision: 'Etat', demandeur: 'Demandeur' },
+    occupants: { batiment: 'Bât.' },
     gestionVehicules: { etat: 'Disponibilité', type: 'Type de véhicule' },
     gestionMateriels: { etat: 'Disponibilité', type: 'Catégorie' }
   };
   var FILTER_DOM_IDS = {
     vehicules: { decision: { btn: 'vehFilterBtn', list: 'vehFilterList' }, demandeur: { btn: 'vehDemandeurFilterBtn', list: 'vehDemandeurFilterList' } },
     materiels: { decision: { btn: 'matFilterBtn', list: 'matFilterList' }, demandeur: { btn: 'matDemandeurFilterBtn', list: 'matDemandeurFilterList' } },
+    occupants: { batiment: { btn: 'occFilterBtn', list: 'occFilterList' } },
     gestionVehicules: { etat: { btn: 'gvFilterBtn', list: 'gvFilterList' }, type: { btn: 'gvTypeFilterBtn', list: 'gvTypeFilterList' } },
     gestionMateriels: { etat: { btn: 'gmFilterBtn', list: 'gmFilterList' }, type: { btn: 'gmTypeFilterBtn', list: 'gmTypeFilterList' } }
   };
 
   var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture de la configuration
 
-  // ---- Menu de navigation principale (header) : Véhicules / Matériels ---
+  // ---- Menu de navigation principale (header) : Véhicules / Matériels /
+  // Occupants par UV --------------------------------------------------------
   // Repris du même principe que FSJ (setView / aria-current). Ne concerne
-  // que les deux pages de demandes : les pages de gestion du parc vivent
-  // dans la zone Configuration (geste caché), pas dans ce menu.
+  // que les pages de ce menu : les pages de gestion du parc vivent dans la
+  // zone Configuration (geste caché), pas dans ce menu.
+
+  var NAV_PAGES = ['vehicules', 'materiels', 'occupants'];
+  var NAV_ELS = { vehicules: navVehicules, materiels: navMateriels, occupants: navOccupants };
+  var NAV_PANELS = { vehicules: panelVehicules, materiels: panelMateriels, occupants: panelOccupants };
 
   function setView(view) {
     currentView = view;
-    if (view === 'vehicules') {
-      navVehicules.setAttribute('aria-current', 'page');
-      navMateriels.removeAttribute('aria-current');
-    } else {
-      navMateriels.setAttribute('aria-current', 'page');
-      navVehicules.removeAttribute('aria-current');
-    }
+    NAV_PAGES.forEach(function (v) {
+      if (v === view) NAV_ELS[v].setAttribute('aria-current', 'page');
+      else NAV_ELS[v].removeAttribute('aria-current');
+    });
     panelSettings.hidden = true;
-    panelVehicules.hidden = (view !== 'vehicules');
-    panelMateriels.hidden = (view !== 'materiels');
+    NAV_PAGES.forEach(function (v) { NAV_PANELS[v].hidden = (v !== view); });
   }
 
   navVehicules.addEventListener('click', function () { setView('vehicules'); });
   navMateriels.addEventListener('click', function () { setView('materiels'); });
+  navOccupants.addEventListener('click', function () { setView('occupants'); });
 
   // ---- Menus déroulants génériques (filtres) -----------------------------
   // Comportement générique repris de FSJ : ouverture au clic, fermeture au
@@ -1365,8 +1467,7 @@
 
   function openSettings(tab) {
     viewBeforeSettings = currentView;
-    panelVehicules.hidden = true;
-    panelMateriels.hidden = true;
+    NAV_PAGES.forEach(function (v) { NAV_PANELS[v].hidden = true; });
     panelSettings.hidden = false;
     settingsStatusZone.innerHTML = '';
     setConfigTab(tab || 'gestionVehicules');
@@ -1730,6 +1831,23 @@
     }
     return String(v).trim();
   }
+  // Même décodage que textOf() (colonne Liste de choix / Références
+  // multiples), mais renvoie un tableau plutôt qu'un texte joint : utilisé
+  // par la page "Occupants par UV" (un badge par occupant, une ligne par
+  // occupant dans le PDF), là où textOf() servirait pour un affichage en
+  // simple texte.
+  function listOf(v) {
+    if (v === null || v === undefined) return [];
+    if (Array.isArray(v)) {
+      var items = v.slice();
+      if (items.length && (items[0] === 'L' || items[0] === 'l' || items[0] === 'R' || items[0] === 'r')) {
+        items = items.slice(1);
+      }
+      return items.map(function (x) { return String(x).trim(); }).filter(function (x) { return x.length > 0; });
+    }
+    var s = String(v).trim();
+    return s ? [s] : [];
+  }
   function escapeHtml(s) {
     var div = document.createElement('div');
     div.textContent = s;
@@ -1830,6 +1948,7 @@
   // différent pour vivre dans deux fonctions séparées.
   function renderPage(pageKey) {
     if (PAGE_KIND[pageKey] === 'gestion') return renderGestionPage(pageKey);
+    if (PAGE_KIND[pageKey] === 'occupants') return renderOccupantsPage(pageKey);
     return renderDemandePage(pageKey);
   }
 
@@ -2133,6 +2252,139 @@
       });
     });
   }
+
+  // ---- Page "Occupants par UV" ---------------------------------------------
+  // Regroupe les lignes chargées par UV (normalement une seule ligne par
+  // UV, mais on fusionne quand même par sécurité si la table en compte
+  // plusieurs pour la même UV) et fusionne la liste de leurs occupants —
+  // affichés ensuite en badges (voir renderOccupantsPage) plutôt qu'en
+  // texte joint, à la différence de textOf().
+  function groupOccupantsByUV(rows) {
+    var order = [];
+    var map = {};
+    rows.forEach(function (r) {
+      var uv = textOf(r.uv);
+      if (!uv) return;
+      var key = normalizeKey(uv);
+      if (!map[key]) {
+        map[key] = { uv: uv, batiment: textOf(r.batiment), occupants: [] };
+        order.push(key);
+      }
+      var grp = map[key];
+      if (!grp.batiment) grp.batiment = textOf(r.batiment);
+      listOf(r.occupants).forEach(function (name) {
+        if (grp.occupants.indexOf(name) === -1) grp.occupants.push(name);
+      });
+    });
+    return order.map(function (key) { return map[key]; }).sort(function (a, b) { return a.uv.localeCompare(b.uv, 'fr'); });
+  }
+
+  function renderOccupantsPage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
+    var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
+
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
+        '<p>Aucune table n’est configurée pour cette page. Ouvrez le bouton « Paramètres » en haut de la page pour associer une table Grist et ses colonnes.</p>' +
+        '</div>';
+      return;
+    }
+    if (pageData[pageKey].error) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
+      return;
+    }
+    if (!pageData[pageKey].loaded) {
+      countEl.textContent = '';
+      zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
+      return;
+    }
+
+    var all = pageData[pageKey].rows;
+    var filters = activeFilters[pageKey];
+    var rows = all.filter(function (r) {
+      if (filters.batiment.length && filters.batiment.indexOf(textOf(r.batiment)) === -1) return false;
+      return true;
+    });
+
+    var allGroups = groupOccupantsByUV(all);
+    var groups = groupOccupantsByUV(rows);
+
+    countEl.textContent = groups.length + ' UV affichée(s) sur ' + allGroups.length;
+
+    if (allGroups.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucune UV dans la table configurée.</p></div>';
+      return;
+    }
+    if (groups.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucune UV ne correspond au filtre sélectionné.</p></div>';
+      return;
+    }
+
+    var cardsHtml = groups.map(function (g) {
+      var batBadge = g.batiment ? '<span class="fr-badge fr-badge--sm fr-badge--info">Bât. ' + escapeHtml(g.batiment) + '</span>' : '';
+      var occupantsHtml = g.occupants.length
+        ? g.occupants.map(function (name) { return '<span class="fr-badge fr-badge--sm">' + escapeHtml(name) + '</span>'; }).join('')
+        : '<span class="uv-card__empty">Aucun occupant</span>';
+      return '<div class="uv-card" data-uv="' + escapeHtml(g.uv) + '">' +
+        '<div class="uv-card__header"><h3 class="uv-card__title">' + escapeHtml(g.uv) + '</h3>' + batBadge + '</div>' +
+        '<div class="uv-card__occupants">' + occupantsHtml + '</div>' +
+        '</div>';
+    }).join('');
+
+    zone.innerHTML = '<div class="uv-grid">' + cardsHtml + '</div>';
+  }
+
+  // ---- Export PDF "Occupants par UV" (paysage, une page par UV) -----------
+  // N'exporte que les UV actuellement affichées (respecte le filtre Bât.
+  // actif, le cas échéant) : générer le PDF pour un seul bâtiment, c'est
+  // filtrer dessus puis cliquer sur le bouton.
+  function generateOccupantsPdf(pageKey) {
+    var cfg = settings[pageKey];
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant de générer le PDF.');
+      return;
+    }
+    var all = pageData[pageKey].rows;
+    var filters = activeFilters[pageKey];
+    var rows = all.filter(function (r) {
+      if (filters.batiment.length && filters.batiment.indexOf(textOf(r.batiment)) === -1) return false;
+      return true;
+    });
+    var groups = groupOccupantsByUV(rows);
+    if (!groups.length) {
+      window.alert('Aucune UV à exporter (vérifiez le filtre Bât. actif).');
+      return;
+    }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      window.alert('La génération du PDF n’a pas pu démarrer (bibliothèque PDF indisponible).');
+      return;
+    }
+    var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    groups.forEach(function (g, i) {
+      if (i > 0) doc.addPage('a4', 'landscape');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(24);
+      doc.text(g.uv, 20, 25);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(14);
+      var y = 40;
+      if (g.occupants.length) {
+        g.occupants.forEach(function (name) {
+          doc.text(name, 20, y);
+          y += 8;
+        });
+      } else {
+        doc.text('Aucun occupant', 20, y);
+      }
+    });
+    doc.save('occupants-par-uv.pdf');
+  }
+
+  var occGeneratePdfBtn = document.getElementById('occGeneratePdfBtn');
+  if (occGeneratePdfBtn) occGeneratePdfBtn.addEventListener('click', function () { generateOccupantsPdf('occupants'); });
 
   // ---- Fenêtre "Nouvelle demande" ------------------------------------------
   // Formulaire de création d'une demande (AddRecord), partagé entre les

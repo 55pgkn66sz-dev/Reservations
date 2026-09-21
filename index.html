@@ -1464,7 +1464,7 @@
         if (sel.value) refreshColumnLists(pageKey, sel.value);
       });
     }).catch(function (e) {
-      showSettingsStatus('error', 'Impossible de lister les tables du document : ' + (e && e.message ? e.message : e));
+      showSettingsStatus('error', 'Impossible de lister les tables du document : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -1502,7 +1502,7 @@
         fillSelectWithOptions(el, columns, current, optionalRoles.indexOf(role) !== -1 ? '(aucune)' : 'Choisir une colonne…');
       });
     }).catch(function (e) {
-      showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + (e && e.message ? e.message : e));
+      showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -1523,7 +1523,7 @@
       showSettingsStatus('success', 'Paramètres enregistrés.');
       refreshAll();
     }).catch(function (e) {
-      showSettingsStatus('error', 'Enregistrement impossible : ' + (e && e.message ? e.message : e));
+      showSettingsStatus('error', 'Enregistrement impossible : ' + friendlyErrorMessage(e));
     });
   });
 
@@ -1681,7 +1681,7 @@
       pageData[pageKey] = { rows: columnarToRows(data, cfg, PAGE_ROLES[pageKey]), loaded: true };
       renderPage(pageKey);
     }).catch(function (e) {
-      pageData[pageKey] = { rows: [], loaded: false, error: (e && e.message) ? e.message : String(e) };
+      pageData[pageKey] = { rows: [], loaded: false, error: friendlyErrorMessage(e) };
       renderPage(pageKey);
     });
   }
@@ -1736,6 +1736,20 @@
     return div.innerHTML;
   }
 
+  // Grist renvoie un message technique en anglais ("Blocked by column
+  // update access rules", etc.) lorsque les règles d'accès du document
+  // interdisent l'écriture demandée (droits insuffisants). On remplace ce
+  // message brut par un texte compréhensible pour l'utilisateur ; les
+  // autres erreurs (réseau, colonne introuvable, etc.) restent affichées
+  // telles quelles.
+  function friendlyErrorMessage(e) {
+    var raw = (e && e.message) ? e.message : String(e || '');
+    if (/blocked by .*access rules/i.test(raw)) {
+      return 'Vous ne disposez pas des droits nécessaires. Contactez l\'équipe projet si vous pensez qu\'il s\'agit d\'une erreur';
+    }
+    return raw;
+  }
+
   // La colonne "Conflit" est une case à cocher (colonne Oui/Non Grist) :
   // fetchTable() renvoie alors un booléen JS (true/false), pas du texte —
   // contrairement à textOf(), qui transformerait un "false" en la chaîne
@@ -1787,7 +1801,7 @@
       renderPage(pageKey);
       loadPageData(pageKey);
     }).catch(function (e) {
-      window.alert('Impossible de mettre à jour la décision : ' + (e && e.message ? e.message : e));
+      window.alert('Impossible de mettre à jour la décision : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -1806,7 +1820,7 @@
       renderPage(pageKey);
       loadPageData(pageKey);
     }).catch(function (e) {
-      window.alert('Impossible de mettre à jour la disponibilité : ' + (e && e.message ? e.message : e));
+      window.alert('Impossible de mettre à jour la disponibilité : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -2394,7 +2408,7 @@
       loadPageData(pageKey);
     }).catch(function (e) {
       newRequestStatus.textContent = '';
-      window.alert((isEdit ? 'Impossible d’enregistrer les modifications : ' : 'Impossible de créer la demande : ') + (e && e.message ? e.message : e));
+      window.alert((isEdit ? 'Impossible d’enregistrer les modifications : ' : 'Impossible de créer la demande : ') + friendlyErrorMessage(e));
     });
   }
 
@@ -2413,7 +2427,7 @@
       loadPageData(pageKey);
     }).catch(function (e) {
       newRequestStatus.textContent = '';
-      window.alert('Impossible de supprimer la demande : ' + (e && e.message ? e.message : e));
+      window.alert('Impossible de supprimer la demande : ' + friendlyErrorMessage(e));
     });
   }
 

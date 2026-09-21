@@ -1583,10 +1583,15 @@
       return true;
     });
 
-    // Plus récentes en premier (la colonne "Date de la demande" n'étant
-    // plus suivie par le widget, l'id de ligne — croissant à la création
-    // dans Grist — sert de repère chronologique).
-    rows.sort(function (a, b) { return b.id - a.id; });
+    // Dates de début les plus proches en premier (ordre croissant).
+    rows.sort(function (a, b) {
+      var da = parseGristDate(a.dateDebut);
+      var db = parseGristDate(b.dateDebut);
+      if (da && db) return da - db;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    });
 
     countEl.textContent = rows.length + ' demande(s) affichée(s) sur ' + all.length;
 

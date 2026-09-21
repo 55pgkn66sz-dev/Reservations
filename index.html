@@ -173,11 +173,12 @@
   .fr-table caption { text-align: left; font-weight: 700; }
 
   /* Le tableau des demandes défile horizontalement plutôt que de
-     comprimer ou de rogner ses colonnes sur un panneau de widget
-     étroit (la largeur minimale garantit que chaque colonne, y compris
-     Action tout à gauche et Décision, reste lisible). Les largeurs de
-     colonnes elles-mêmes sont fixées en ligne (style="width:…%") dans
-     le <th> correspondant, proportionnées à leur contenu habituel. */
+     comprimer ou de rogner ses colonnes, à partir d'une largeur d'écran
+     suffisante (voir la règle @media plus bas pour la vue mobile, en
+     dessous de laquelle le tableau devient une pile de cartes plutôt
+     que de défiler). Les largeurs de colonnes elles-mêmes sont fixées
+     en ligne (style="width:…%") dans le <th> correspondant, proportion-
+     nées à leur contenu habituel. */
   .fr-table__wrapper { overflow-x: auto; }
   table.req-table {
     table-layout: fixed;
@@ -194,6 +195,82 @@
     line-height: 1.3;
   }
   table.req-table th { font-size: 0.95em; }
+
+  /* ---- Vue mobile (écran étroit, en dessous de 40rem / ~640px) --------
+     Le tableau des demandes / du parc, pensé pour défiler horizontale-
+     ment sur un écran large (voir ci-dessus), devient ici une pile de
+     cartes verticales : chaque ligne (<tr>) est une carte, chaque
+     cellule (<td>) affiche l'intitulé de sa colonne au-dessus de sa
+     valeur (via l'attribut data-label posé côté JS dans
+     renderDemandePage / renderGestionPage) et l'en-tête <thead> est
+     masqué visuellement — mais reste dans le DOM, donc toujours
+     accessible aux lecteurs d'écran. La barre d'outils, les menus
+     déroulants de filtre et la fenêtre modale de demande sont également
+     resserrés pour tenir sur un écran de téléphone. */
+  @media (max-width: 40rem) {
+    .widget-wrap { padding: 1rem 0.75rem; }
+
+    .req-toolbar { gap: 0.5rem; }
+    /* Le compteur ("X demande(s) affichée(s) sur Y") passe sur sa
+       propre ligne plutôt que de se retrouver coincé à côté des
+       boutons/filtres qui ont déjà rempli toute la largeur. */
+    .req-count--push { margin-left: 0; flex-basis: 100%; }
+
+    /* Empêche un menu de filtre ouvert près du bord droit de déborder
+       hors de l'écran sur un téléphone étroit. */
+    .dropdown-menu__list { min-width: 12rem; max-width: calc(100vw - 2.5rem); }
+
+    .fr-table__wrapper { overflow-x: visible; }
+    table.req-table {
+      table-layout: auto;
+      min-width: 0;
+      font-size: 0.95em;
+    }
+    table.req-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+      padding: 0;
+      margin: -1px;
+    }
+    table.req-table tbody tr {
+      display: block;
+      border: 1px solid var(--border-default-grey);
+      border-radius: 0.25rem;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+    table.req-table tbody tr:last-child { margin-bottom: 0; }
+    table.req-table td {
+      display: block;
+      padding: 0.4rem 0;
+      border: none;
+    }
+    table.req-table td + td { border-top: 1px solid var(--border-default-grey); }
+    table.req-table td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 0.72em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      color: var(--text-mention-grey);
+      margin-bottom: 0.15rem;
+    }
+
+    /* Fenêtre modale "Nouvelle demande" / "Modifier la demande" : moins
+       de marge autour, et les boutons du pied de page s'empilent sur
+       toute la largeur (plus faciles à toucher qu'une rangée serrée). */
+    .newreq-overlay { padding: 1rem 0.5rem; }
+    .newreq-dialog { padding: 1.25rem; }
+    .newreq-dialog__footer { flex-direction: column-reverse; align-items: stretch; }
+    .newreq-dialog__footer button { width: 100%; justify-content: center; }
+    .newreq-dialog__footer .newreq-delete-btn { margin-right: 0; margin-top: 0.75rem; }
+  }
 
   .settings-section + .settings-section { margin-top: 2rem; }
   .settings-grid {
@@ -497,11 +574,11 @@
             <select class="fr-select" id="veh_table" data-page="vehicules"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_demandeur">Demandeur</label>
+            <label class="fr-label" for="veh_col_demandeur">Demandeur (optionnel)</label>
             <select class="fr-select" id="veh_col_demandeur" data-page="vehicules" data-role="demandeur"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_objet">Véhicule demandé</label>
+            <label class="fr-label" for="veh_col_objet">Véhicule (optionnel)</label>
             <select class="fr-select" id="veh_col_objet" data-page="vehicules" data-role="objet"></select>
           </div>
           <div class="fr-select-group">
@@ -525,7 +602,7 @@
             <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -567,6 +644,10 @@
             <select class="fr-select" id="mat_col_objet" data-page="materiels" data-role="objet"></select>
           </div>
           <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_materielAccorde">Matériel accordé (optionnel)</label>
+            <select class="fr-select" id="mat_col_materielAccorde" data-page="materiels" data-role="materielAccorde"></select>
+          </div>
+          <div class="fr-select-group">
             <label class="fr-label" for="mat_col_quantite">Quantité (optionnel)</label>
             <select class="fr-select" id="mat_col_quantite" data-page="materiels" data-role="quantite"></select>
           </div>
@@ -591,7 +672,8 @@
             <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">« Matériel accordé » : si réglée, une colonne dédiée s'affiche dans le tableau juste après « Matériel demandé », pour noter ce qui a réellement été remis (s'il diffère de la demande).</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -748,6 +830,11 @@
 
   // Rôles de colonnes des deux pages de demandes (+ 'quantite', propre aux matériels).
   var ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'conflit'];
+  // Rôles propres à la page "Réservations de matériels" : les mêmes que
+  // ROLES, plus 'materielAccorde' — colonne optionnelle affichée dans le
+  // tableau juste après « Matériel demandé » (voir renderDemandePage),
+  // absente côté véhicules.
+  var MATERIEL_ROLES = ROLES.concat(['materielAccorde']);
   // Rôles de colonnes des deux pages de gestion du parc (onglets de la zone Configuration).
   var GESTION_ROLES = ['identifiant', 'type', 'etat'];
 
@@ -757,18 +844,21 @@
   // les distingue, pour que le reste du script (filtres, chargement,
   // réglages) reste générique et commun aux deux familles de pages.
   var ALL_PAGES = ['vehicules', 'materiels', 'gestionVehicules', 'gestionMateriels'];
-  var PAGE_ROLES = { vehicules: ROLES, materiels: ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
+  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
   var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
   var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
   var PAGE_REQUIRED_COLS = {
-    vehicules: ['demandeur', 'objet', 'decision'],
+    // Demandeur et Véhicule sont optionnels côté véhicules (voir
+    // PAGE_OPTIONAL_COLS ci-dessous) : seule Décision reste obligatoire
+    // pour que la page soit considérée configurée.
+    vehicules: ['decision'],
     materiels: ['demandeur', 'objet', 'decision'],
     gestionVehicules: ['identifiant', 'type', 'etat'],
     gestionMateriels: ['identifiant', 'type', 'etat']
   };
   var PAGE_OPTIONAL_COLS = {
-    vehicules: ['quantite', 'conflit'],
-    materiels: ['quantite', 'conflit'],
+    vehicules: ['demandeur', 'objet', 'quantite', 'conflit'],
+    materiels: ['quantite', 'conflit', 'materielAccorde'],
     gestionVehicules: [],
     gestionMateriels: []
   };
@@ -1640,7 +1730,7 @@
     var cfg = settings[pageKey];
     var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
     var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
-    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule' : 'Matériel demandé';
 
     if (!isPageConfigComplete(pageKey, cfg)) {
       countEl.textContent = '';
@@ -1701,14 +1791,21 @@
     }
 
     var hasQuantite = pageKey === 'materiels' && !!cfg.col.quantite;
+    // Colonne "Matériel accordé" : propre à la page matériels, affichée
+    // juste après "Matériel demandé" uniquement si une colonne lui est
+    // réglée (voir mat_col_materielAccorde) — absente côté véhicules,
+    // comme les autres rôles propres à MATERIEL_ROLES.
+    var hasMaterielAccorde = pageKey === 'materiels' && !!cfg.col.materielAccorde;
 
     // Largeurs proportionnées (en %) des colonnes, dans leur ordre
     // d'affichage — la colonne Décision (boutons de décision) est
     // placée en premier, pour rester visible même sur un panneau de
     // widget étroit, plutôt que de risquer d'être coupée tout à droite.
-    var colWidths = [18, 14, 19, 17, 32];
+    var colWidths = hasMaterielAccorde ? [16, 12, 15, 14, 14, 29] : [18, 14, 19, 17, 32];
 
-    var headCells = ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
+    var headCells = hasMaterielAccorde
+      ? ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Matériel accordé', 'Période souhaitée', 'Motif']
+      : ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
     }).join('') + '</tr>';
@@ -1728,7 +1825,8 @@
 
       // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
       // cette demande) : signalé par un badge DSFR "Conflit" dans la
-      // colonne Véhicule/Matériel demandé, purement informatif — l'action
+      // colonne Véhicule/Matériel demandé (l'intitulé exact de la colonne
+      // dépend de la page, voir objetLabel), purement informatif — l'action
       // Valider reste toujours disponible (elle n'est plus bloquée).
       var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
 
@@ -1744,12 +1842,22 @@
       var objetCell = escapeHtml(objet) +
         (conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
 
+      // L'attribut data-label sur chaque <td> reprend l'intitulé de sa
+      // colonne : en vue mobile (voir la règle CSS table.req-table sous
+      // 40rem), le tableau se transforme en une pile de cartes où l'en-tête
+      // <thead> est masqué visuellement, et ce data-label sert alors
+      // d'étiquette pour chaque cellule via ::before.
+      var materielAccordeCell = hasMaterielAccorde
+        ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + '</td>'
+        : '';
+
       return '<tr data-row-id="' + r.id + '">' +
-        '<td>' + actions + '</td>' +
-        '<td>' + escapeHtml(textOf(r.demandeur)) + '</td>' +
-        '<td>' + objetCell + '</td>' +
-        '<td>' + escapeHtml(periode) + '</td>' +
-        '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
+        '<td data-label="Gérer la demande">' + actions + '</td>' +
+        '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>' +
+        '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>' +
+        materielAccordeCell +
+        '<td data-label="Période souhaitée">' + escapeHtml(periode) + '</td>' +
+        '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>' +
         '</tr>';
     }).join('');
 
@@ -1843,9 +1951,9 @@
       var etatDisplay = etatText || cfg.valeurs.disponible;
 
       return '<tr data-row-id="' + r.id + '">' +
-        '<td>' + escapeHtml(textOf(r.identifiant)) + '</td>' +
-        '<td>' + escapeHtml(textOf(r.type)) + '</td>' +
-        '<td>' +
+        '<td data-label="Identifiant">' + escapeHtml(textOf(r.identifiant)) + '</td>' +
+        '<td data-label="' + escapeHtml(typeLabel) + '">' + escapeHtml(textOf(r.type)) + '</td>' +
+        '<td data-label="Disponibilité">' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + toggleIcon + ' fr-btn--icon-left gestion-etat-btn" data-action="toggle-etat" title="' + escapeHtml(toggleTitle) + '">' +
         '<span class="fr-badge fr-badge--sm ' + badgeClass + '">' + escapeHtml(etatDisplay) + '</span>' +
         '</button>' +
@@ -1924,7 +2032,7 @@
     }
     currentNewRequestPage = pageKey;
     currentNewRequestRowId = null;
-    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule' : 'Matériel demandé';
     newRequestTitle.textContent = pageKey === 'vehicules'
       ? 'Nouvelle demande de réservation de véhicule'
       : 'Nouvelle demande de réservation de matériel';
@@ -1951,7 +2059,7 @@
     }
     currentNewRequestPage = pageKey;
     currentNewRequestRowId = rowId;
-    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule' : 'Matériel demandé';
     newRequestTitle.textContent = pageKey === 'vehicules'
       ? 'Modifier la demande de réservation de véhicule'
       : 'Modifier la demande de réservation de matériel';

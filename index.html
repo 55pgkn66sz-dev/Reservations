@@ -133,6 +133,16 @@
     border-top: 1px solid var(--border-default-grey);
     margin: 0.25rem 0;
   }
+  /* Champ de recherche en tête du filtre Demandeur (filtre à saisie
+     clavier, pour retrouver rapidement un nom dans une longue liste). */
+  .dropdown-menu__search { padding: 0.35rem 0.75rem 0.5rem; }
+  .dropdown-menu__search input[type="search"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85em;
+    border: 1px solid var(--border-default-grey);
+  }
 
   .req-toolbar {
     display: flex;
@@ -912,6 +922,15 @@
     FILTER_KEYS[pageKey].forEach(function (filterKey) { activeFilters[pageKey][filterKey] = []; });
   });
 
+  // Texte tapé dans le champ de recherche du filtre Demandeur (voir
+  // buildFilterMenu) : conservé tant que le widget est ouvert, pour que le
+  // filtrage reste appliqué si le menu est refermé puis rouvert.
+  var filterSearchText = {};
+  ALL_PAGES.forEach(function (pageKey) {
+    filterSearchText[pageKey] = {};
+    FILTER_KEYS[pageKey].forEach(function (filterKey) { filterSearchText[pageKey][filterKey] = ''; });
+  });
+
   function updateFilterButtonLabel(pageKey, filterKey) {
     var selected = activeFilters[pageKey][filterKey];
     var btn = filterEls[pageKey][filterKey].btn;
@@ -933,6 +952,7 @@
 
   function clearFilter(pageKey, filterKey) {
     activeFilters[pageKey][filterKey] = [];
+    filterSearchText[pageKey][filterKey] = '';
     updateFilterButtonLabel(pageKey, filterKey);
     renderPage(pageKey);
     buildFilterMenu(pageKey, filterKey);
@@ -944,6 +964,7 @@
   function resetAllFilters(pageKey) {
     FILTER_KEYS[pageKey].forEach(function (filterKey) {
       activeFilters[pageKey][filterKey] = [];
+      filterSearchText[pageKey][filterKey] = '';
       updateFilterButtonLabel(pageKey, filterKey);
     });
     renderPage(pageKey);
@@ -958,6 +979,11 @@
     var list = filterEls[pageKey][filterKey].list;
     list.innerHTML = '';
     var selected = activeFilters[pageKey][filterKey];
+    // Filtre Demandeur uniquement : un champ de recherche en tête de liste
+    // permet de taper au clavier pour retrouver rapidement un nom, plutôt
+    // que de faire défiler toutes les cases à cocher.
+    var searchable = filterKey === 'demandeur';
+    var noResultsLi = null;
 
     function addAction(text, onClick) {
       var li = document.createElement('li');
@@ -974,6 +1000,7 @@
     function addCheckbox(value) {
       var li = document.createElement('li');
       li.setAttribute('role', 'none');
+      if (searchable) li.setAttribute('data-filter-value', value);
       var label = document.createElement('label');
       label.className = 'dropdown-menu__item dropdown-menu__item--checkbox';
       var isChecked = selected.indexOf(value) !== -1;
@@ -1009,6 +1036,45 @@
       li.appendChild(hr);
       list.appendChild(li);
     }
+    // Champ de recherche (filtre Demandeur uniquement) : filtre en direct
+    // les cases à cocher déjà construites (masquage par li.hidden), sans
+    // reconstruire tout le menu à chaque frappe — ce qui préserverait le
+    // focus/curseur de toute façon, mais autant éviter le travail inutile.
+    function addSearchBox() {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      li.className = 'dropdown-menu__search';
+      var input = document.createElement('input');
+      input.type = 'search';
+      input.placeholder = 'Rechercher un demandeur…';
+      input.setAttribute('aria-label', 'Rechercher un demandeur');
+      input.value = filterSearchText[pageKey][filterKey];
+      input.addEventListener('input', function () {
+        filterSearchText[pageKey][filterKey] = input.value;
+        applySearchFilter();
+      });
+      li.appendChild(input);
+      list.appendChild(li);
+      // Rend la saisie immédiatement possible à l'ouverture du menu ; le
+      // menu n'est pas encore affiché à cet instant (voir setupDropdown),
+      // d'où le report au tick suivant.
+      window.setTimeout(function () {
+        if (!list.hidden) input.focus();
+      }, 0);
+    }
+    function applySearchFilter() {
+      if (!searchable) return;
+      var q = normalizeKey(filterSearchText[pageKey][filterKey] || '');
+      var anyVisible = false;
+      list.querySelectorAll('li[data-filter-value]').forEach(function (li) {
+        var match = !q || normalizeKey(li.getAttribute('data-filter-value')).indexOf(q) !== -1;
+        li.hidden = !match;
+        if (match) anyVisible = true;
+      });
+      if (noResultsLi) noResultsLi.hidden = anyVisible;
+    }
+
+    if (searchable) addSearchBox();
 
     if (selected.length) {
       addAction('Tout désélectionner', function () { clearFilter(pageKey, filterKey); });
@@ -1025,6 +1091,18 @@
         if (values.length) addDivider();
         addCheckbox(CONFLIT_FILTER_VALUE);
       }
+    }
+
+    if (searchable && values.length) {
+      var noResultsP = document.createElement('p');
+      noResultsP.className = 'dropdown-menu__section';
+      noResultsP.textContent = 'Aucun demandeur ne correspond à la recherche.';
+      noResultsLi = document.createElement('li');
+      noResultsLi.setAttribute('role', 'none');
+      noResultsLi.hidden = true;
+      noResultsLi.appendChild(noResultsP);
+      list.appendChild(noResultsLi);
+      applySearchFilter(); // réapplique une recherche déjà en cours si le menu est rouvert
     }
   }
 
@@ -1590,6 +1668,12 @@
         var matchesDecision = filters.decision.indexOf(textOf(r.decision)) !== -1;
         var matchesConflit = hasConflitColForFilter && filters.decision.indexOf(CONFLIT_FILTER_VALUE) !== -1 && isConflitChecked(r.conflit);
         if (!matchesDecision && !matchesConflit) return false;
+      } else if (normalizeKey(textOf(r.decision)) === normalizeKey(cfg.valeurs.reintegre)) {
+        // Par défaut (aucun filtre Etat actif), les demandes déjà
+        // réintégrées sont masquées pour ne pas encombrer la liste des
+        // demandes en cours ; elles restent consultables via le filtre
+        // Etat = « Réintégré ».
+        return false;
       }
       if (filters.demandeur.length && filters.demandeur.indexOf(textOf(r.demandeur)) === -1) return false;
       return true;
@@ -1652,7 +1736,7 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (isValidee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-r-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-unarchive-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';

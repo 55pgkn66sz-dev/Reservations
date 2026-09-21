@@ -99,6 +99,26 @@
     font-weight: 700;
     color: var(--bleu-france);
   }
+  /* Variante à case à cocher (filtres à sélection multiple) : le
+     libellé reste cliquable dans toute sa largeur (label englobant),
+     la case et le texte s'alignent sur une ligne. */
+  .dropdown-menu__item--checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+  }
+  .dropdown-menu__item--checkbox input[type="checkbox"] {
+    margin: 0;
+    flex: none;
+  }
+  .dropdown-menu__item--checkbox span {
+    overflow-wrap: anywhere;
+  }
+  .dropdown-menu__item--checked {
+    font-weight: 700;
+    color: var(--bleu-france);
+  }
   .dropdown-menu__section {
     margin: 0;
     padding: 0.4rem 1rem 0.15rem;
@@ -137,6 +157,8 @@
   .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: #18753c; }
   .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: #ce0500; }
   .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: #b34000; }
+  .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: #000091; }
+  .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: #009099; }
 
   /* Valider bloqué par un conflit (colonne Conflit renseignée) : bouton
      volontairement laissé focusable/survolable (aria-disabled, pas
@@ -164,13 +186,17 @@
     table-layout: fixed;
     width: 100%;
     min-width: 60rem;
+    font-size: 0.9em;
   }
   table.req-table th,
   table.req-table td {
     overflow-wrap: break-word;
     word-break: break-word;
+    white-space: normal;
     vertical-align: top;
+    line-height: 1.3;
   }
+  table.req-table th { font-size: 0.95em; }
 
   .settings-section + .settings-section { margin-top: 2rem; }
   .settings-grid {
@@ -247,9 +273,9 @@
     <div class="req-toolbar fr-mb-2w">
       <div class="dropdown-menu" id="vehFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehFilterList">
-          Décision
+          Etat
         </button>
-        <ul class="dropdown-menu__list" id="vehFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par décision" hidden></ul>
+        <ul class="dropdown-menu__list" id="vehFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par état" hidden></ul>
       </div>
       <div class="dropdown-menu" id="vehDemandeurFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehDemandeurFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehDemandeurFilterList">
@@ -273,9 +299,9 @@
     <div class="req-toolbar fr-mb-2w">
       <div class="dropdown-menu" id="matFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matFilterList">
-          Décision
+          Etat
         </button>
-        <ul class="dropdown-menu__list" id="matFilterList" role="menu" aria-label="Filtrer les demandes de matériels par décision" hidden></ul>
+        <ul class="dropdown-menu__list" id="matFilterList" role="menu" aria-label="Filtrer les demandes de matériels par état" hidden></ul>
       </div>
       <div class="dropdown-menu" id="matDemandeurFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matDemandeurFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matDemandeurFilterList">
@@ -361,6 +387,14 @@
             <label class="fr-label" for="veh_val_refusee">Refusée</label>
             <input class="fr-input" type="text" id="veh_val_refusee" value="Refusée">
           </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="veh_val_percu">Perçu</label>
+            <input class="fr-input" type="text" id="veh_val_percu" value="Perçu">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="veh_val_reintegre">Réintégré</label>
+            <input class="fr-input" type="text" id="veh_val_reintegre" value="Réintégré">
+          </div>
         </div>
       </div>
 
@@ -427,6 +461,14 @@
             <label class="fr-label" for="mat_val_refusee">Refusée</label>
             <input class="fr-input" type="text" id="mat_val_refusee" value="Refusée">
           </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="mat_val_percu">Perçu</label>
+            <input class="fr-input" type="text" id="mat_val_percu" value="Perçu">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="mat_val_reintegre">Réintégré</label>
+            <input class="fr-input" type="text" id="mat_val_reintegre" value="Réintégré">
+          </div>
         </div>
       </div>
 
@@ -476,20 +518,28 @@
     return {
       table: '',
       col: { demandeur: '', dateDemande: '', objet: '', quantite: '', dateDebut: '', dateFin: '', motif: '', decision: '', commentaire: '', conflit: '' },
-      valeurs: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée' }
+      valeurs: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' }
     };
   }
 
   var settings = { vehicules: defaultPageConfig(), materiels: defaultPageConfig() };
   var settingsLoaded = false;
 
-  // Données chargées depuis Grist pour chaque page, et filtre actif
-  // (valeur de la colonne Décision retenue, ou null = toutes).
+  // Données chargées depuis Grist pour chaque page, et filtres actifs :
+  // pour chaque page, un ensemble de valeurs retenues par filtre (clé
+  // 'decision' ou 'demandeur') — tableau vide = aucun filtre, toutes les
+  // demandes affichées ; plusieurs valeurs cochées pour un même filtre se
+  // combinent en OU, les deux filtres (Décision, Demandeur) se combinent
+  // entre eux en ET.
   var pageData = {
     vehicules: { rows: [], loaded: false },
     materiels: { rows: [], loaded: false }
   };
-  var activeFilter = { vehicules: null, materiels: null };
+  var activeFilters = {
+    vehicules: { decision: [], demandeur: [] },
+    materiels: { decision: [], demandeur: [] }
+  };
+  var filterFieldLabels = { decision: 'Etat', demandeur: 'Demandeur' };
 
   var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture des paramètres
 
@@ -541,21 +591,52 @@
   }
 
   var filterEls = {
-    vehicules: { btn: document.getElementById('vehFilterBtn'), list: document.getElementById('vehFilterList') },
-    materiels: { btn: document.getElementById('matFilterBtn'), list: document.getElementById('matFilterList') }
+    vehicules: {
+      decision: { btn: document.getElementById('vehFilterBtn'), list: document.getElementById('vehFilterList') },
+      demandeur: { btn: document.getElementById('vehDemandeurFilterBtn'), list: document.getElementById('vehDemandeurFilterList') }
+    },
+    materiels: {
+      decision: { btn: document.getElementById('matFilterBtn'), list: document.getElementById('matFilterList') },
+      demandeur: { btn: document.getElementById('matDemandeurFilterBtn'), list: document.getElementById('matDemandeurFilterList') }
+    }
   };
 
-  function setFilter(pageKey, value) {
-    activeFilter[pageKey] = value;
-    filterEls[pageKey].btn.textContent = value ? ('Filtre : ' + value) : 'Filtrer';
+  function updateFilterButtonLabel(pageKey, filterKey) {
+    var selected = activeFilters[pageKey][filterKey];
+    var btn = filterEls[pageKey][filterKey].btn;
+    btn.textContent = selected.length ? (filterFieldLabels[filterKey] + ' (' + selected.length + ')') : filterFieldLabels[filterKey];
+  }
+
+  // Coche/décoche une valeur pour ce filtre (sélection multiple : chaque
+  // case cochée s'ajoute aux autres, en OU) et met à jour le tableau
+  // aussitôt — sans fermer le menu, pour pouvoir en cocher plusieurs à
+  // la suite.
+  function toggleFilterValue(pageKey, filterKey, value) {
+    var selected = activeFilters[pageKey][filterKey];
+    var idx = selected.indexOf(value);
+    if (idx === -1) selected.push(value); else selected.splice(idx, 1);
+    updateFilterButtonLabel(pageKey, filterKey);
     renderPage(pageKey);
   }
 
-  function buildFilterMenu(pageKey) {
-    var list = filterEls[pageKey].list;
-    list.innerHTML = '';
+  function clearFilter(pageKey, filterKey) {
+    activeFilters[pageKey][filterKey] = [];
+    updateFilterButtonLabel(pageKey, filterKey);
+    renderPage(pageKey);
+    buildFilterMenu(pageKey, filterKey);
+  }
 
-    function addItem(text, onClick, isCurrent) {
+  // Reconstruit le contenu d'un menu de filtre à choix multiple (une
+  // case à cocher par valeur réellement rencontrée dans les données
+  // chargées, comme getAllCadreNames() dans FSJ, mais avec des cases à
+  // cocher plutôt qu'un choix unique) : appelé juste avant chaque
+  // ouverture, pour refléter l'état courant des données.
+  function buildFilterMenu(pageKey, filterKey) {
+    var list = filterEls[pageKey][filterKey].list;
+    list.innerHTML = '';
+    var selected = activeFilters[pageKey][filterKey];
+
+    function addAction(text, onClick) {
       var li = document.createElement('li');
       li.setAttribute('role', 'none');
       var btn = document.createElement('button');
@@ -563,12 +644,29 @@
       btn.className = 'dropdown-menu__item';
       btn.setAttribute('role', 'menuitem');
       btn.textContent = text;
-      if (isCurrent) btn.setAttribute('aria-current', 'true');
-      btn.addEventListener('click', function () {
-        onClick();
-        filterDropdowns[pageKey].close();
-      });
+      btn.addEventListener('click', onClick);
       li.appendChild(btn);
+      list.appendChild(li);
+    }
+    function addCheckbox(value) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var label = document.createElement('label');
+      label.className = 'dropdown-menu__item dropdown-menu__item--checkbox';
+      var isChecked = selected.indexOf(value) !== -1;
+      if (isChecked) label.classList.add('dropdown-menu__item--checked');
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = isChecked;
+      checkbox.addEventListener('change', function () {
+        label.classList.toggle('dropdown-menu__item--checked', checkbox.checked);
+        toggleFilterValue(pageKey, filterKey, value);
+      });
+      var span = document.createElement('span');
+      span.textContent = value;
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      li.appendChild(label);
       list.appendChild(li);
     }
     function addSection(label) {
@@ -589,36 +687,40 @@
       list.appendChild(li);
     }
 
-    if (activeFilter[pageKey]) {
-      addItem('Toutes les décisions', function () { setFilter(pageKey, null); }, false);
+    if (selected.length) {
+      addAction('Tout désélectionner', function () { clearFilter(pageKey, filterKey); });
       addDivider();
     }
 
-    addSection('Décision');
-    var values = getAllDecisionValues(pageKey);
+    var values = getAllFieldValues(pageKey, filterKey);
     if (!values.length) {
       addSection('(aucune donnée chargée)');
     } else {
-      values.forEach(function (v) {
-        addItem(v, function () { setFilter(pageKey, v); }, activeFilter[pageKey] === v);
-      });
+      values.forEach(addCheckbox);
     }
   }
 
   var filterDropdowns = {
-    vehicules: setupDropdown(filterEls.vehicules.btn, filterEls.vehicules.list, function () { buildFilterMenu('vehicules'); }),
-    materiels: setupDropdown(filterEls.materiels.btn, filterEls.materiels.list, function () { buildFilterMenu('materiels'); })
+    vehicules: {
+      decision: setupDropdown(filterEls.vehicules.decision.btn, filterEls.vehicules.decision.list, function () { buildFilterMenu('vehicules', 'decision'); }),
+      demandeur: setupDropdown(filterEls.vehicules.demandeur.btn, filterEls.vehicules.demandeur.list, function () { buildFilterMenu('vehicules', 'demandeur'); })
+    },
+    materiels: {
+      decision: setupDropdown(filterEls.materiels.decision.btn, filterEls.materiels.decision.list, function () { buildFilterMenu('materiels', 'decision'); }),
+      demandeur: setupDropdown(filterEls.materiels.demandeur.btn, filterEls.materiels.demandeur.list, function () { buildFilterMenu('materiels', 'demandeur'); })
+    }
   };
 
-  // Toutes les valeurs de Décision rencontrées dans les données chargées
-  // de cette page, dédupliquées et triées (comme getAllCadreNames() dans
-  // FSJ) : le filtre reflète toujours les libellés réels de la table,
-  // quels qu'ils soient.
-  function getAllDecisionValues(pageKey) {
+  // Toutes les valeurs rencontrées, pour un champ de ligne donné (colonne
+  // 'decision' ou 'demandeur'), dans les données chargées de cette page,
+  // dédupliquées et triées (comme getAllCadreNames() dans FSJ) : le
+  // filtre reflète toujours les libellés réels de la table, quels
+  // qu'ils soient.
+  function getAllFieldValues(pageKey, fieldName) {
     var seen = {};
     var out = [];
     pageData[pageKey].rows.forEach(function (r) {
-      var v = textOf(r.decision);
+      var v = textOf(r[fieldName]);
       if (!v) return;
       var key = normalizeKey(v);
       if (!seen[key]) { seen[key] = true; out.push(v); }
@@ -682,6 +784,8 @@
     cfg.valeurs.attente = document.getElementById(prefix + 'val_attente').value || 'En attente';
     cfg.valeurs.validee = document.getElementById(prefix + 'val_validee').value || 'Validée';
     cfg.valeurs.refusee = document.getElementById(prefix + 'val_refusee').value || 'Refusée';
+    cfg.valeurs.percu = document.getElementById(prefix + 'val_percu').value || 'Perçu';
+    cfg.valeurs.reintegre = document.getElementById(prefix + 'val_reintegre').value || 'Réintégré';
     return cfg;
   }
 
@@ -692,6 +796,8 @@
       document.getElementById(prefix + 'val_attente').value = cfg.valeurs.attente;
       document.getElementById(prefix + 'val_validee').value = cfg.valeurs.validee;
       document.getElementById(prefix + 'val_refusee').value = cfg.valeurs.refusee;
+      document.getElementById(prefix + 'val_percu').value = cfg.valeurs.percu;
+      document.getElementById(prefix + 'val_reintegre').value = cfg.valeurs.reintegre;
     });
   }
 
@@ -809,6 +915,8 @@
       cfg.valeurs.attente = loaded.valeurs.attente || cfg.valeurs.attente;
       cfg.valeurs.validee = loaded.valeurs.validee || cfg.valeurs.validee;
       cfg.valeurs.refusee = loaded.valeurs.refusee || cfg.valeurs.refusee;
+      cfg.valeurs.percu = loaded.valeurs.percu || cfg.valeurs.percu;
+      cfg.valeurs.reintegre = loaded.valeurs.reintegre || cfg.valeurs.reintegre;
     }
     return cfg;
   }
@@ -862,8 +970,23 @@
   function normalizeKey(v) {
     return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
   }
+  // Les colonnes Grist de type Liste de choix ou Référence(s) multiples
+  // sont renvoyées par l'API comme un tableau étiqueté : ['L', 'a', 'b']
+  // (Liste de choix / liste de références) — sans ce traitement, ce
+  // tableau s'affichait littéralement comme "L,a,b" dans les cellules
+  // (repris du même traitement que FSJ, cf. sa fonction codesOf()).
+  // Une Référence simple reste un identifiant numérique brut (id de la
+  // ligne visée) : ce cas n'est pas résolu en texte ici.
   function textOf(v) {
-    return (v === null || v === undefined) ? '' : String(v).trim();
+    if (v === null || v === undefined) return '';
+    if (Array.isArray(v)) {
+      var items = v.slice();
+      if (items.length && (items[0] === 'L' || items[0] === 'l' || items[0] === 'R' || items[0] === 'r')) {
+        items = items.slice(1);
+      }
+      return items.map(function (x) { return String(x).trim(); }).filter(function (x) { return x.length > 0; }).join(', ');
+    }
+    return String(v).trim();
   }
   function escapeHtml(s) {
     var div = document.createElement('div');
@@ -934,9 +1057,12 @@
     }
 
     var all = pageData[pageKey].rows;
-    var rows = activeFilter[pageKey]
-      ? all.filter(function (r) { return textOf(r.decision) === activeFilter[pageKey]; })
-      : all.slice();
+    var filters = activeFilters[pageKey];
+    var rows = all.filter(function (r) {
+      if (filters.decision.length && filters.decision.indexOf(textOf(r.decision)) === -1) return false;
+      if (filters.demandeur.length && filters.demandeur.indexOf(textOf(r.demandeur)) === -1) return false;
+      return true;
+    });
 
     // Plus récentes en premier.
     rows.sort(function (a, b) {
@@ -967,10 +1093,10 @@
     // placée en premier, pour rester visible même sur un panneau de
     // widget étroit, plutôt que de risquer d'être coupée tout à droite.
     var colWidths = hasCommentaire
-      ? [14, 13, 17, 15, 24, 17]
-      : [16, 15, 20, 18, 31];
+      ? [16, 12, 16, 14, 23, 19]
+      : [18, 14, 19, 17, 32];
 
-    var headCells = ['Décision', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
+    var headCells = ['Actions', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
     if (hasCommentaire) headCells.push('Commentaire');
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
@@ -986,6 +1112,8 @@
       var isValidee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.validee);
       var isRefusee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.refusee);
       var isAttente = !decisionText || normalizeKey(decisionText) === normalizeKey(cfg.valeurs.attente);
+      var isPercu = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.percu);
+      var isReintegre = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.reintegre);
 
       // Conflit détecté (colonne "Conflit" configurée et renseignée pour
       // cette demande) : bloque l'action Valider (sauf si elle est déjà
@@ -1005,7 +1133,7 @@
       // disabled) afin que le bouton reste focusable/survolable : c'est
       // ce qui permet à l'infobulle de detail de s'afficher malgré tout ;
       // le gestionnaire de clic respecte aria-disabled comme un blocage.
-      var actions = '<div class="req-actions" role="group" aria-label="Décision">' +
+      var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + validerIcon + '" title="' + escapeHtml(validerTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '"' +
         (isValidee ? ' disabled' : '') +
         (validerBlocked ? ' aria-disabled="true"' : '') +
@@ -1014,6 +1142,8 @@
         (tooltipId ? '<span class="fr-tooltip fr-placement" id="' + tooltipId + '" role="tooltip">' + escapeHtml(conflitText) + '</span>' : '') +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-r-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-login-box-r-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
         '</div>';
 
       return '<tr data-row-id="' + r.id + '">' +
@@ -1040,9 +1170,7 @@
         if (btn.getAttribute('aria-disabled') === 'true') return; // bloqué par un conflit
         var tr = btn.closest('tr[data-row-id]');
         var rowId = Number(tr.getAttribute('data-row-id'));
-        var target = btn.getAttribute('data-action') === 'validee' ? cfg.valeurs.validee
-          : btn.getAttribute('data-action') === 'refusee' ? cfg.valeurs.refusee
-          : cfg.valeurs.attente;
+        var target = cfg.valeurs[btn.getAttribute('data-action')];
         updateDecision(pageKey, rowId, target);
       });
     });

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="fr" data-fr-scheme="system">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Réservations véhicules &amp; matériels</title>
+
+<!--
+  Widget personnalisé Grist : gestion des demandes de réservation de
+  véhicules et de matériels, avec décision (validation / refus) et
+  filtre sur la colonne Décision.
+
+  Construit sur le modèle du widget "Feuille de service journalier"
+  (FSJ) : interface conforme au DSFR (Système de Design de l'État) :
+  https://www.systeme-de-design.gouv.fr/ — via le package officiel
+  @gouvfr/dsfr — même en-tête, même menu principal à deux entrées, même
+  composant de menu déroulant pour le filtre.
+
+  Contrairement à FSJ (qui lit une seule table déjà associée au widget
+  dans Grist), ce widget gère DEUX tables indépendantes (Véhicules et
+  Matériels) : il utilise donc l'accès complet au document
+  (requiredAccess: 'full') et grist.docApi.fetchTable /
+  applyUserActions plutôt que grist.onRecords. Le choix des tables et
+  des colonnes se fait depuis le panneau "Paramètres" du widget
+  (bouton en haut à droite), et est mémorisé par widget via
+  grist.setOption / grist.getOption.
+-->
+
+<!-- DSFR (Système de Design de l'État) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/dsfr.min.css">
+<!-- Icônes DSFR (fr-icon-*, fr-btn--icon-*) : chargées directement en
+     complément, comme dans FSJ, pour garantir leur affichage dans le
+     contexte d'un widget Grist (voir le commentaire équivalent dans FSJ). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/utility/icons/icons.min.css">
+
+<!-- API du widget Grist -->
+<script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+
+<style>
+  :root { --bleu-france: #000091; }
+  html, body { margin: 0; padding: 0; }
+  .widget-wrap { padding: 1.5rem 1.25rem; width: 100%; box-sizing: border-box; }
+  .fr-header .fr-container { width: 100%; max-width: none; }
+  .fr-alert { margin-bottom: 0; }
+
+  .section-title {
+    font-weight: 700;
+    text-decoration: underline;
+    margin: 1rem 0 0.5rem;
+  }
+
+  /* Menu de navigation principale, dans le header (choix de la page) :
+     deux entrées, l'élément actif porte aria-current="page" (le CSS
+     DSFR le souligne/le met en évidence automatiquement). Repris à
+     l'identique de FSJ. */
+  #header-navigation .fr-nav__link { cursor: pointer; }
+
+  /* Barre au-dessus des pages : accès aux paramètres, hors du menu
+     principal (qui ne doit contenir que les deux pages demandées). */
+  .req-topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Menu déroulant (filtre Décision) : bouton + liste positionnée en
+     absolu juste dessous, fermée par défaut. Repris à l'identique de
+     FSJ ("Filtrer la progression" -> ici "Filtrer les demandes"). */
+  .dropdown-menu { position: relative; display: inline-block; }
+  .dropdown-menu__list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 20;
+    margin: 0.25rem 0 0;
+    padding: 0.25rem 0;
+    min-width: 14rem;
+    max-height: 20rem;
+    overflow-y: auto;
+    background: #fff;
+    border: 1px solid var(--border-default-grey);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+    list-style: none;
+  }
+  .dropdown-menu__list li { margin: 0; }
+  .dropdown-menu__item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 0.4rem 1rem;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+    color: inherit;
+  }
+  .dropdown-menu__item:hover, .dropdown-menu__item:focus {
+    background: #f0f0f5;
+  }
+  .dropdown-menu__item[aria-current="true"] {
+    font-weight: 700;
+    color: var(--bleu-france);
+  }
+  .dropdown-menu__section {
+    margin: 0;
+    padding: 0.4rem 1rem 0.15rem;
+    font-size: 0.72em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-mention-grey);
+  }
+  .dropdown-menu__divider {
+    border: none;
+    border-top: 1px solid var(--border-default-grey);
+    margin: 0.25rem 0;
+  }
+
+  .req-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-start;
+  }
+  .req-count { margin: 0; color: var(--text-mention-grey); font-size: 0.9em; }
+  .req-count--push { margin-left: auto; }
+
+  .req-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .req-actions .fr-btn { white-space: nowrap; }
+
+  .fr-table caption { text-align: left; font-weight: 700; }
+
+  .settings-section + .settings-section { margin-top: 2rem; }
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem 1.25rem;
+  }
+  .settings-grid .fr-select-group,
+  .settings-grid .fr-input-group { margin-bottom: 0; }
+
+  /* Pied de page du widget : crédit, comme dans FSJ. */
+  .widget-footer {
+    margin-top: 2rem;
+    border-top: 1px solid var(--border-default-grey);
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+  .widget-footer__credit {
+    margin: 0;
+    font-size: 0.8em;
+    color: var(--text-mention-grey);
+  }
+</style>
+</head>
+<body>
+
+<header role="banner" class="fr-header">
+  <div class="fr-header__body">
+    <div class="fr-container">
+      <div class="fr-header__body-row">
+        <div class="fr-header__brand fr-enlarge-link">
+          <div class="fr-header__brand-top">
+            <div class="fr-header__logo">
+              <p class="fr-logo">Ministère<br>de l'Intérieur</p>
+            </div>
+          </div>
+          <div class="fr-header__service">
+            <p class="fr-header__service-title">Division réserves jeunesse</p>
+            <p class="fr-header__service-tagline">Gestion des réservations</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="fr-header__menu fr-header__menu--sticky">
+    <div class="fr-container">
+      <nav class="fr-nav" id="header-navigation" role="navigation" aria-label="Menu principal">
+        <ul class="fr-nav__list">
+          <li class="fr-nav__item">
+            <button class="fr-nav__link" id="navVehicules" type="button" aria-current="page">Réservations de véhicules</button>
+          </li>
+          <li class="fr-nav__item">
+            <button class="fr-nav__link" id="navMateriels" type="button">Réservations de matériels</button>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<div class="widget-wrap">
+
+  <div class="req-topbar">
+    <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-settings-5-line fr-btn--icon-left" id="openSettingsBtn" type="button">
+      Paramètres
+    </button>
+  </div>
+
+  <!-- Page "Réservations de véhicules" -->
+  <div id="panelVehicules">
+    <h2 class="fr-h6">Demandes de réservation de véhicules</h2>
+
+    <div class="req-toolbar fr-mb-2w">
+      <div class="dropdown-menu" id="vehFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehFilterList">
+          Filtrer
+        </button>
+        <ul class="dropdown-menu__list" id="vehFilterList" role="menu" aria-label="Filtrer les demandes de véhicules" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="vehCount"></p>
+    </div>
+
+    <div id="vehZone"></div>
+  </div>
+
+  <!-- Page "Réservations de matériels" -->
+  <div id="panelMateriels" hidden>
+    <h2 class="fr-h6">Demandes de réservation de matériels</h2>
+
+    <div class="req-toolbar fr-mb-2w">
+      <div class="dropdown-menu" id="matFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matFilterList">
+          Filtrer
+        </button>
+        <ul class="dropdown-menu__list" id="matFilterList" role="menu" aria-label="Filtrer les demandes de matériels" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matRefreshBtn" type="button">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="matCount"></p>
+    </div>
+
+    <div id="matZone"></div>
+  </div>
+
+  <!-- Panneau "Paramètres" : mapping des tables/colonnes Grist. Accessible
+       depuis le bouton en haut à droite, indépendamment du menu principal
+       (qui ne doit contenir que les deux pages demandées). -->
+  <div id="panelSettings" hidden>
+    <h2 class="fr-h6">Paramètres du widget</h2>
+    <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
+      <p>Associez, pour chaque type de demande, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget.</p>
+    </div>
+
+    <form id="settingsForm">
+      <div class="settings-section">
+        <p class="section-title">Véhicules</p>
+        <div class="settings-grid">
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_table">Table Grist</label>
+            <select class="fr-select" id="veh_table" data-page="vehicules"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_demandeur">Demandeur</label>
+            <select class="fr-select" id="veh_col_demandeur" data-page="vehicules" data-role="demandeur"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_dateDemande">Date de la demande</label>
+            <select class="fr-select" id="veh_col_dateDemande" data-page="vehicules" data-role="dateDemande"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_objet">Véhicule demandé</label>
+            <select class="fr-select" id="veh_col_objet" data-page="vehicules" data-role="objet"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_dateDebut">Date de début souhaitée</label>
+            <select class="fr-select" id="veh_col_dateDebut" data-page="vehicules" data-role="dateDebut"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_dateFin">Date de fin souhaitée</label>
+            <select class="fr-select" id="veh_col_dateFin" data-page="vehicules" data-role="dateFin"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_motif">Motif / destination</label>
+            <select class="fr-select" id="veh_col_motif" data-page="vehicules" data-role="motif"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_decision">Décision</label>
+            <select class="fr-select" id="veh_col_decision" data-page="vehicules" data-role="decision"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="veh_col_commentaire">Commentaire (optionnel)</label>
+            <select class="fr-select" id="veh_col_commentaire" data-page="vehicules" data-role="commentaire"></select>
+          </div>
+        </div>
+        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
+        <div class="settings-grid">
+          <div class="fr-input-group">
+            <label class="fr-label" for="veh_val_attente">En attente</label>
+            <input class="fr-input" type="text" id="veh_val_attente" value="En attente">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="veh_val_validee">Validée</label>
+            <input class="fr-input" type="text" id="veh_val_validee" value="Validée">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="veh_val_refusee">Refusée</label>
+            <input class="fr-input" type="text" id="veh_val_refusee" value="Refusée">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <p class="section-title">Matériels</p>
+        <div class="settings-grid">
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_table">Table Grist</label>
+            <select class="fr-select" id="mat_table" data-page="materiels"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_demandeur">Demandeur</label>
+            <select class="fr-select" id="mat_col_demandeur" data-page="materiels" data-role="demandeur"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_dateDemande">Date de la demande</label>
+            <select class="fr-select" id="mat_col_dateDemande" data-page="materiels" data-role="dateDemande"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_objet">Matériel demandé</label>
+            <select class="fr-select" id="mat_col_objet" data-page="materiels" data-role="objet"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_quantite">Quantité (optionnel)</label>
+            <select class="fr-select" id="mat_col_quantite" data-page="materiels" data-role="quantite"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_dateDebut">Date de début souhaitée</label>
+            <select class="fr-select" id="mat_col_dateDebut" data-page="materiels" data-role="dateDebut"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_dateFin">Date de fin souhaitée</label>
+            <select class="fr-select" id="mat_col_dateFin" data-page="materiels" data-role="dateFin"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_motif">Motif</label>
+            <select class="fr-select" id="mat_col_motif" data-page="materiels" data-role="motif"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_decision">Décision</label>
+            <select class="fr-select" id="mat_col_decision" data-page="materiels" data-role="decision"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="mat_col_commentaire">Commentaire (optionnel)</label>
+            <select class="fr-select" id="mat_col_commentaire" data-page="materiels" data-role="commentaire"></select>
+          </div>
+        </div>
+        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
+        <div class="settings-grid">
+          <div class="fr-input-group">
+            <label class="fr-label" for="mat_val_attente">En attente</label>
+            <input class="fr-input" type="text" id="mat_val_attente" value="En attente">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="mat_val_validee">Validée</label>
+            <input class="fr-input" type="text" id="mat_val_validee" value="Validée">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="mat_val_refusee">Refusée</label>
+            <input class="fr-input" type="text" id="mat_val_refusee" value="Refusée">
+          </div>
+        </div>
+      </div>
+
+      <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
+        <li><button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer les paramètres</button></li>
+        <li><button class="fr-btn fr-btn--secondary" id="cancelSettingsBtn" type="button">Fermer sans enregistrer</button></li>
+      </ul>
+    </form>
+
+    <div id="settingsStatusZone" class="fr-mt-3w" aria-live="polite"></div>
+  </div>
+
+</div>
+
+<footer class="widget-footer" role="contentinfo">
+  <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026 — sur le modèle du widget « Feuille de service journalier »</p>
+</footer>
+
+<!-- DSFR : comportements JS (non indispensable ici, mais recommandé par le DSFR) -->
+<script type="module" src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/dsfr/dsfr.module.min.js"></script>
+<script nomodule src="https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/dsfr/dsfr.nomodule.min.js"></script>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Éléments -------------------------------------------------------
+
+  var navVehicules = document.getElementById('navVehicules');
+  var navMateriels = document.getElementById('navMateriels');
+  var panelVehicules = document.getElementById('panelVehicules');
+  var panelMateriels = document.getElementById('panelMateriels');
+  var panelSettings = document.getElementById('panelSettings');
+  var openSettingsBtn = document.getElementById('openSettingsBtn');
+  var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
+  var saveSettingsBtn = document.getElementById('saveSettingsBtn');
+  var settingsStatusZone = document.getElementById('settingsStatusZone');
+
+  var currentView = 'vehicules'; // 'vehicules' | 'materiels' (la vue active parmi les deux pages du menu)
+  var viewBeforeSettings = 'vehicules';
+
+  // Rôles de colonnes communs aux deux pages (+ 'quantite', propre aux matériels).
+  var ROLES = ['demandeur', 'dateDemande', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'commentaire'];
+
+  function defaultPageConfig() {
+    return {
+      table: '',
+      col: { demandeur: '', dateDemande: '', objet: '', quantite: '', dateDebut: '', dateFin: '', motif: '', decision: '', commentaire: '' },
+      valeurs: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée' }
+    };
+  }
+
+  var settings = { vehicules: defaultPageConfig(), materiels: defaultPageConfig() };
+  var settingsLoaded = false;
+
+  // Données chargées depuis Grist pour chaque page, et filtre actif
+  // (valeur de la colonne Décision retenue, ou null = toutes).
+  var pageData = {
+    vehicules: { rows: [], loaded: false },
+    materiels: { rows: [], loaded: false }
+  };
+  var activeFilter = { vehicules: null, materiels: null };
+
+  var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture des paramètres
+
+  // ---- Menu de navigation principale (header) : Véhicules / Matériels ---
+  // Repris du même principe que FSJ (setView / aria-current).
+
+  function setView(view) {
+    currentView = view;
+    if (view === 'vehicules') {
+      navVehicules.setAttribute('aria-current', 'page');
+      navMateriels.removeAttribute('aria-current');
+    } else {
+      navMateriels.setAttribute('aria-current', 'page');
+      navVehicules.removeAttribute('aria-current');
+    }
+    panelSettings.hidden = true;
+    panelVehicules.hidden = (view !== 'vehicules');
+    panelMateriels.hidden = (view !== 'materiels');
+  }
+
+  navVehicules.addEventListener('click', function () { setView('vehicules'); });
+  navMateriels.addEventListener('click', function () { setView('materiels'); });
+
+  // ---- Menus déroulants génériques (filtre Décision) --------------------
+  // Comportement générique repris de FSJ : ouverture au clic, fermeture au
+  // clic extérieur, à l'Échap, ou après sélection d'un élément.
+
+  function setupDropdown(btn, list, onBeforeOpen) {
+    function close() {
+      list.hidden = true;
+      btn.setAttribute('aria-expanded', 'false');
+    }
+    function open() {
+      if (onBeforeOpen) onBeforeOpen();
+      list.hidden = false;
+      btn.setAttribute('aria-expanded', 'true');
+    }
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (list.hidden) open(); else close();
+    });
+    document.addEventListener('click', function (e) {
+      if (!list.hidden && e.target !== btn && !list.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !list.hidden) { close(); btn.focus(); }
+    });
+    return { open: open, close: close };
+  }
+
+  var filterEls = {
+    vehicules: { btn: document.getElementById('vehFilterBtn'), list: document.getElementById('vehFilterList') },
+    materiels: { btn: document.getElementById('matFilterBtn'), list: document.getElementById('matFilterList') }
+  };
+
+  function setFilter(pageKey, value) {
+    activeFilter[pageKey] = value;
+    filterEls[pageKey].btn.textContent = value ? ('Filtre : ' + value) : 'Filtrer';
+    renderPage(pageKey);
+  }
+
+  function buildFilterMenu(pageKey) {
+    var list = filterEls[pageKey].list;
+    list.innerHTML = '';
+
+    function addItem(text, onClick, isCurrent) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dropdown-menu__item';
+      btn.setAttribute('role', 'menuitem');
+      btn.textContent = text;
+      if (isCurrent) btn.setAttribute('aria-current', 'true');
+      btn.addEventListener('click', function () {
+        onClick();
+        filterDropdowns[pageKey].close();
+      });
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+    function addSection(label) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var p = document.createElement('p');
+      p.className = 'dropdown-menu__section';
+      p.textContent = label;
+      li.appendChild(p);
+      list.appendChild(li);
+    }
+    function addDivider() {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var hr = document.createElement('hr');
+      hr.className = 'dropdown-menu__divider';
+      li.appendChild(hr);
+      list.appendChild(li);
+    }
+
+    if (activeFilter[pageKey]) {
+      addItem('Toutes les décisions', function () { setFilter(pageKey, null); }, false);
+      addDivider();
+    }
+
+    addSection('Décision');
+    var values = getAllDecisionValues(pageKey);
+    if (!values.length) {
+      addSection('(aucune donnée chargée)');
+    } else {
+      values.forEach(function (v) {
+        addItem(v, function () { setFilter(pageKey, v); }, activeFilter[pageKey] === v);
+      });
+    }
+  }
+
+  var filterDropdowns = {
+    vehicules: setupDropdown(filterEls.vehicules.btn, filterEls.vehicules.list, function () { buildFilterMenu('vehicules'); }),
+    materiels: setupDropdown(filterEls.materiels.btn, filterEls.materiels.list, function () { buildFilterMenu('materiels'); })
+  };
+
+  // Toutes les valeurs de Décision rencontrées dans les données chargées
+  // de cette page, dédupliquées et triées (comme getAllCadreNames() dans
+  // FSJ) : le filtre reflète toujours les libellés réels de la table,
+  // quels qu'ils soient.
+  function getAllDecisionValues(pageKey) {
+    var seen = {};
+    var out = [];
+    pageData[pageKey].rows.forEach(function (r) {
+      var v = textOf(r.decision);
+      if (!v) return;
+      var key = normalizeKey(v);
+      if (!seen[key]) { seen[key] = true; out.push(v); }
+    });
+    out.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+    return out;
+  }
+
+  document.getElementById('vehRefreshBtn').addEventListener('click', function () { loadPageData('vehicules'); });
+  document.getElementById('matRefreshBtn').addEventListener('click', function () { loadPageData('materiels'); });
+
+  // ---- Paramètres ---------------------------------------------------------
+
+  function openSettings() {
+    viewBeforeSettings = currentView;
+    panelVehicules.hidden = true;
+    panelMateriels.hidden = true;
+    panelSettings.hidden = false;
+    settingsStatusZone.innerHTML = '';
+    fillSettingsForm();
+    refreshTableList();
+  }
+  function closeSettings() {
+    panelSettings.hidden = true;
+    setView(viewBeforeSettings);
+  }
+  openSettingsBtn.addEventListener('click', openSettings);
+  cancelSettingsBtn.addEventListener('click', closeSettings);
+
+  function pageConfigFromForm(pageKey) {
+    var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+    var cfg = defaultPageConfig();
+    cfg.table = document.getElementById(prefix + 'table').value;
+    ROLES.forEach(function (role) {
+      var el = document.getElementById(prefix + 'col_' + role);
+      if (el) cfg.col[role] = el.value;
+    });
+    cfg.valeurs.attente = document.getElementById(prefix + 'val_attente').value || 'En attente';
+    cfg.valeurs.validee = document.getElementById(prefix + 'val_validee').value || 'Validée';
+    cfg.valeurs.refusee = document.getElementById(prefix + 'val_refusee').value || 'Refusée';
+    return cfg;
+  }
+
+  function fillSettingsForm() {
+    ['vehicules', 'materiels'].forEach(function (pageKey) {
+      var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+      var cfg = settings[pageKey];
+      document.getElementById(prefix + 'val_attente').value = cfg.valeurs.attente;
+      document.getElementById(prefix + 'val_validee').value = cfg.valeurs.validee;
+      document.getElementById(prefix + 'val_refusee').value = cfg.valeurs.refusee;
+    });
+  }
+
+  function fillSelectWithOptions(selectEl, options, currentValue, placeholder) {
+    var current = currentValue || selectEl.value;
+    selectEl.innerHTML = '';
+    var optEmpty = document.createElement('option');
+    optEmpty.value = '';
+    optEmpty.textContent = placeholder;
+    selectEl.appendChild(optEmpty);
+    options.forEach(function (opt) {
+      var o = document.createElement('option');
+      o.value = opt;
+      o.textContent = opt;
+      selectEl.appendChild(o);
+    });
+    if (current && options.indexOf(current) !== -1) selectEl.value = current;
+    else selectEl.value = '';
+  }
+
+  // Rafraîchit la liste des tables du document dans les deux sélecteurs de
+  // table, puis, pour la table déjà choisie (le cas échéant), rafraîchit
+  // aussi la liste des colonnes disponibles.
+  function refreshTableList() {
+    grist.docApi.listTables().then(function (tables) {
+      allTableIds = tables || [];
+      ['vehicules', 'materiels'].forEach(function (pageKey) {
+        var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+        var sel = document.getElementById(prefix + 'table');
+        fillSelectWithOptions(sel, allTableIds, settings[pageKey].table, 'Choisir une table…');
+        if (sel.value) refreshColumnLists(pageKey, sel.value);
+      });
+    }).catch(function (e) {
+      showSettingsStatus('error', 'Impossible de lister les tables du document : ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  // Rafraîchit, pour une page donnée, les sélecteurs de rôle de colonne à
+  // partir des colonnes réellement présentes dans la table choisie.
+  function refreshColumnLists(pageKey, tableId) {
+    var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+    if (!tableId) {
+      ROLES.forEach(function (role) {
+        var el = document.getElementById(prefix + 'col_' + role);
+        if (el) fillSelectWithOptions(el, [], '', 'Choisir une table d’abord…');
+      });
+      return;
+    }
+    grist.docApi.fetchTable(tableId).then(function (data) {
+      var columns = Object.keys(data || {}).filter(function (c) {
+        return c !== 'id' && c !== 'manualSort';
+      }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
+      var cfg = settings[pageKey];
+      ROLES.forEach(function (role) {
+        var el = document.getElementById(prefix + 'col_' + role);
+        if (!el) return;
+        var current = (cfg.table === tableId) ? cfg.col[role] : '';
+        fillSelectWithOptions(el, columns, current, role === 'quantite' || role === 'commentaire' ? '(aucune)' : 'Choisir une colonne…');
+      });
+    }).catch(function (e) {
+      showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  ['veh_table', 'mat_table'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () {
+      refreshColumnLists(this.getAttribute('data-page'), this.value);
+    });
+  });
+
+  function showSettingsStatus(type, message) {
+    settingsStatusZone.innerHTML = '<div class="fr-alert fr-alert--' + type + ' fr-alert--sm"><p>' + escapeHtml(message) + '</p></div>';
+  }
+
+  saveSettingsBtn.addEventListener('click', function () {
+    var next = { vehicules: pageConfigFromForm('vehicules'), materiels: pageConfigFromForm('materiels') };
+    grist.setOption('reservationsConfig', next).then(function () {
+      settings = next;
+      showSettingsStatus('success', 'Paramètres enregistrés.');
+      refreshAll();
+    }).catch(function (e) {
+      showSettingsStatus('error', 'Enregistrement impossible : ' + (e && e.message ? e.message : e));
+    });
+  });
+
+  // ---- Initialisation du widget Grist ------------------------------------
+
+  grist.ready({
+    requiredAccess: 'full'
+    // Pas de mapping "columns" ici : à la différence de FSJ, ce widget lit
+    // deux tables indépendantes via grist.docApi (accès complet), pas la
+    // table unique associée au widget — le choix des tables/colonnes se
+    // fait depuis le panneau "Paramètres" ci-dessus.
+  });
+
+  grist.onOptions(function (options) {
+    var loaded = (options && options.reservationsConfig) ? options.reservationsConfig : null;
+    settings = {
+      vehicules: (loaded && loaded.vehicules) ? mergeConfig(loaded.vehicules) : defaultPageConfig(),
+      materiels: (loaded && loaded.materiels) ? mergeConfig(loaded.materiels) : defaultPageConfig()
+    };
+    settingsLoaded = true;
+    fillSettingsForm();
+    refreshAll();
+    if (!isPageConfigComplete(settings.vehicules) && !isPageConfigComplete(settings.materiels)) {
+      openSettings();
+    }
+  });
+
+  function mergeConfig(loaded) {
+    var cfg = defaultPageConfig();
+    cfg.table = loaded.table || '';
+    if (loaded.col) Object.keys(loaded.col).forEach(function (k) { cfg.col[k] = loaded.col[k] || ''; });
+    if (loaded.valeurs) {
+      cfg.valeurs.attente = loaded.valeurs.attente || cfg.valeurs.attente;
+      cfg.valeurs.validee = loaded.valeurs.validee || cfg.valeurs.validee;
+      cfg.valeurs.refusee = loaded.valeurs.refusee || cfg.valeurs.refusee;
+    }
+    return cfg;
+  }
+
+  function isPageConfigComplete(cfg) {
+    return !!(cfg.table && cfg.col.demandeur && cfg.col.dateDemande && cfg.col.objet && cfg.col.decision);
+  }
+
+  // ---- Chargement des données depuis Grist -------------------------------
+
+  function refreshAll() {
+    loadPageData('vehicules');
+    loadPageData('materiels');
+  }
+
+  function loadPageData(pageKey) {
+    var cfg = settings[pageKey];
+    if (!isPageConfigComplete(cfg)) {
+      pageData[pageKey] = { rows: [], loaded: false };
+      renderPage(pageKey);
+      return;
+    }
+    grist.docApi.fetchTable(cfg.table).then(function (data) {
+      pageData[pageKey] = { rows: columnarToRows(data, cfg), loaded: true };
+      renderPage(pageKey);
+    }).catch(function (e) {
+      pageData[pageKey] = { rows: [], loaded: false, error: (e && e.message) ? e.message : String(e) };
+      renderPage(pageKey);
+    });
+  }
+
+  // Convertit le format colonnaire renvoyé par fetchTable ({id: [...],
+  // Colonne: [...]}) en tableau de lignes exploitables, selon le mapping
+  // de colonnes choisi dans les paramètres pour cette page.
+  function columnarToRows(data, cfg) {
+    if (!data || !data.id) return [];
+    var rows = [];
+    for (var i = 0; i < data.id.length; i++) {
+      var row = { id: data.id[i] };
+      ROLES.forEach(function (role) {
+        var colName = cfg.col[role];
+        row[role] = colName ? data[colName][i] : null;
+      });
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  // ---- Rendu d'une page (tableau + filtre + décisions) -------------------
+
+  function normalizeKey(v) {
+    return String(v || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toUpperCase();
+  }
+  function textOf(v) {
+    return (v === null || v === undefined) ? '' : String(v).trim();
+  }
+  function escapeHtml(s) {
+    var div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  // Les colonnes Date/DateTime de Grist sont renvoyées comme un
+  // horodatage Unix (en secondes) ; on gère aussi le texte
+  // "JJ/MM/AAAA" au cas où (repris de la logique de FSJ).
+  function parseGristDate(value) {
+    if (value === null || value === undefined || value === '') return null;
+    if (typeof value === 'number') return new Date(value * 1000);
+    if (value instanceof Date) return value;
+    if (typeof value === 'string') {
+      var m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+      if (m) return new Date(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10));
+      var parsed = new Date(value);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return null;
+  }
+  function fmtDate(value) {
+    var d = parseGristDate(value);
+    if (!d) return textOf(value);
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + '/' + mm + '/' + d.getFullYear();
+  }
+
+  function badgeClassForDecision(value) {
+    var k = normalizeKey(value);
+    if (!k) return 'fr-badge fr-badge--sm';
+    if (k.indexOf('VALID') > -1 || k.indexOf('ACCEPT') > -1 || k.indexOf('APPROUV') > -1 || k.indexOf('AUTORIS') > -1) return 'fr-badge fr-badge--sm fr-badge--success';
+    if (k.indexOf('REFUS') > -1 || k.indexOf('REJET') > -1 || k.indexOf('ANNUL') > -1) return 'fr-badge fr-badge--sm fr-badge--error';
+    if (k.indexOf('ATTENTE') > -1 || k.indexOf('COURS') > -1 || k.indexOf('INSTRUCTION') > -1) return 'fr-badge fr-badge--sm fr-badge--warning';
+    return 'fr-badge fr-badge--sm fr-badge--info';
+  }
+
+  function updateDecision(pageKey, rowId, newValue) {
+    var cfg = settings[pageKey];
+    var action = ['UpdateRecord', cfg.table, rowId, (function () { var o = {}; o[cfg.col.decision] = newValue; return o; })()];
+    grist.docApi.applyUserActions([action]).then(function () {
+      // Mise à jour optimiste locale, puis on recharge pour rester en
+      // phase avec le document (une autre personne peut modifier en
+      // parallèle).
+      pageData[pageKey].rows.forEach(function (r) { if (r.id === rowId) r.decision = newValue; });
+      renderPage(pageKey);
+      loadPageData(pageKey);
+    }).catch(function (e) {
+      window.alert('Impossible de mettre à jour la décision : ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  function renderPage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(pageKey === 'vehicules' ? 'vehZone' : 'matZone');
+    var countEl = document.getElementById(pageKey === 'vehicules' ? 'vehCount' : 'matCount');
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+
+    if (!isPageConfigComplete(cfg)) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
+        '<p>Aucune table n’est configurée pour cette page. Ouvrez le bouton « Paramètres » en haut de la page pour associer une table Grist et ses colonnes.</p>' +
+        '</div>';
+      return;
+    }
+    if (pageData[pageKey].error) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
+      return;
+    }
+    if (!pageData[pageKey].loaded) {
+      countEl.textContent = '';
+      zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
+      return;
+    }
+
+    var all = pageData[pageKey].rows;
+    var rows = activeFilter[pageKey]
+      ? all.filter(function (r) { return textOf(r.decision) === activeFilter[pageKey]; })
+      : all.slice();
+
+    // Plus récentes en premier.
+    rows.sort(function (a, b) {
+      var da = parseGristDate(a.dateDemande);
+      var db = parseGristDate(b.dateDemande);
+      if (da && db) return db - da;
+      if (da) return -1;
+      if (db) return 1;
+      return 0;
+    });
+
+    countEl.textContent = rows.length + ' demande(s) affichée(s) sur ' + all.length;
+
+    if (all.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucune demande dans la table configurée.</p></div>';
+      return;
+    }
+    if (rows.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucune demande ne correspond au filtre sélectionné.</p></div>';
+      return;
+    }
+
+    var hasQuantite = pageKey === 'materiels' && !!cfg.col.quantite;
+    var hasCommentaire = !!cfg.col.commentaire;
+
+    var head = '<tr>' +
+      '<th scope="col">Demandeur</th>' +
+      '<th scope="col">Date de la demande</th>' +
+      '<th scope="col">' + escapeHtml(objetLabel) + '</th>' +
+      '<th scope="col">Période souhaitée</th>' +
+      '<th scope="col">Motif</th>' +
+      '<th scope="col">Décision</th>' +
+      (hasCommentaire ? '<th scope="col">Commentaire</th>' : '') +
+      '<th scope="col">Action</th>' +
+      '</tr>';
+
+    var body = rows.map(function (r) {
+      var objet = textOf(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
+      var periode = fmtDate(r.dateDebut) + ' → ' + fmtDate(r.dateFin);
+      var decisionText = textOf(r.decision);
+      var badge = '<span class="' + badgeClassForDecision(decisionText) + '">' + escapeHtml(decisionText || cfg.valeurs.attente) + '</span>';
+
+      var isValidee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.validee);
+      var isRefusee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.refusee);
+      var isAttente = !decisionText || normalizeKey(decisionText) === normalizeKey(cfg.valeurs.attente);
+
+      var actions = '<div class="req-actions">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" ' + (isValidee ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" ' + (isRefusee ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" ' + (isAttente ? 'disabled' : '') + '></button>' +
+        '</div>';
+
+      return '<tr data-row-id="' + r.id + '">' +
+        '<td>' + escapeHtml(textOf(r.demandeur)) + '</td>' +
+        '<td>' + escapeHtml(fmtDate(r.dateDemande)) + '</td>' +
+        '<td>' + escapeHtml(objet) + '</td>' +
+        '<td>' + escapeHtml(periode) + '</td>' +
+        '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
+        '<td>' + badge + '</td>' +
+        (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
+        '<td>' + actions + '</td>' +
+        '</tr>';
+    }).join('');
+
+    zone.innerHTML =
+      '<div class="fr-table fr-table--bordered">' +
+      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
+      '<table><caption class="fr-sr-only">' + escapeHtml(objetLabel + 's') + '</caption>' +
+      '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
+      '</table>' +
+      '</div></div></div>' +
+      '</div>';
+
+    zone.querySelectorAll('button[data-action]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tr = btn.closest('tr[data-row-id]');
+        var rowId = Number(tr.getAttribute('data-row-id'));
+        var target = btn.getAttribute('data-action') === 'validee' ? cfg.valeurs.validee
+          : btn.getAttribute('data-action') === 'refusee' ? cfg.valeurs.refusee
+          : cfg.valeurs.attente;
+        updateDecision(pageKey, rowId, target);
+      });
+    });
+  }
+
+})();
+</script>
+</body>
+</html>

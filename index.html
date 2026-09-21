@@ -217,6 +217,33 @@
   .uv-card[data-occupancy="alone"] { background: var(--uv-pastel-alone); }
   .uv-card[data-occupancy="full"] { background: var(--uv-pastel-full); }
   .uv-card[data-occupancy="over"] { background: var(--uv-pastel-over); }
+  /* Légende des couleurs ci-dessus (voir #occLegend) : une pastille par
+     statut, avec le même fond pastel que la carte correspondante. */
+  .uv-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 1.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.9em;
+    color: var(--text-mention-grey);
+  }
+  .uv-legend__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .uv-legend__swatch {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-radius: 0.2rem;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    flex: none;
+  }
+  .uv-legend__swatch--alone { background: var(--uv-pastel-alone); }
+  .uv-legend__swatch--full { background: var(--uv-pastel-full); }
+  .uv-legend__swatch--over { background: var(--uv-pastel-over); }
   .uv-card__header {
     display: flex;
     align-items: center;
@@ -654,6 +681,16 @@
         Télécharger les affiches
       </button>
     </div>
+
+    <!-- Légende des couleurs de fond des cartes UV (voir occupancyStatusOf
+         côté script) : affichée uniquement ici (version web), jamais sur
+         les affiches PDF générées. Masquée tant que "Capacité de l'UV"
+         n'est pas réglée dans le dashboard (voir renderOccupantsPage). -->
+    <ul class="uv-legend fr-mb-2w" id="occLegend" hidden>
+      <li class="uv-legend__item"><span class="uv-legend__swatch uv-legend__swatch--alone" aria-hidden="true"></span>Seul(e) en chambre</li>
+      <li class="uv-legend__item"><span class="uv-legend__swatch uv-legend__swatch--full" aria-hidden="true"></span>Chambre complète</li>
+      <li class="uv-legend__item"><span class="uv-legend__swatch uv-legend__swatch--over" aria-hidden="true"></span>Chambre en sureffectif</li>
+    </ul>
 
     <div id="occZone"></div>
   </div>
@@ -2402,6 +2439,12 @@
     var cfg = settings[pageKey];
     var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
     var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
+    // Légende des couleurs (voir occupancyStatusOf) : affichée uniquement
+    // sur la version web (jamais dans le PDF), et seulement quand la
+    // colonne "Capacité de l'UV" est réglée — sans elle, aucune carte ne
+    // peut prendre de couleur, la légende n'aurait donc pas de sens.
+    var legendEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Legend');
+    if (legendEl) legendEl.hidden = true;
 
     if (!isPageConfigComplete(pageKey, cfg)) {
       countEl.textContent = '';
@@ -2415,6 +2458,7 @@
       zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
       return;
     }
+    if (legendEl) legendEl.hidden = !cfg.col.capacite;
     if (!pageData[pageKey].loaded) {
       countEl.textContent = '';
       zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
@@ -2496,7 +2540,10 @@
       var startY = (PAGE_H - blockHeight) / 2 + TITLE_LINE_H * 0.75;
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(TITLE_SIZE);
-      doc.text(g.uv, PAGE_W / 2, startY, { align: 'center' });
+      // Même titre que sur la carte version web (voir renderOccupantsPage/
+      // formatUvTitle) : "Bâtiment x - Chambre y" quand l'UV suit ce
+      // format, repli sur la valeur brute sinon.
+      doc.text(formatUvTitle(g.uv), PAGE_W / 2, startY, { align: 'center' });
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(NAME_SIZE);
       var y = startY + GAP_TITLE_LIST;
@@ -2539,13 +2586,20 @@
   // de « colonne d'affichage » que resolveReferenceColumns ci-dessus) au
   // lieu d'un champ texte, pour écrire un id de ligne valide.
 
-  var NEW_REQUEST_ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif'];
+  // "materielAccorde" (rôle propre aux matériels, voir MATERIEL_ROLES) est
+  // placé en dernier, comme la colonne correspondante dans le tableau, et
+  // c'est le seul champ facultatif du formulaire (voir isRequired dans
+  // buildNewRequestForm) : contrairement aux autres, la demande peut être
+  // enregistrée sans qu'il soit renseigné (rien n'est encore accordé au
+  // moment de la demande, ou pas encore décidé).
+  var NEW_REQUEST_ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'materielAccorde'];
   var NEW_REQUEST_LABELS = {
     demandeur: 'Demandeur',
     quantite: 'Quantité',
     dateDebut: 'Date et heure de début',
     dateFin: 'Date et heure de fin',
-    motif: 'Motif'
+    motif: 'Motif',
+    materielAccorde: 'Matériel accordé'
   };
 
   var newRequestOverlay = document.getElementById('newRequestOverlay');
@@ -2699,6 +2753,13 @@
         var label = role === 'objet' ? objetLabel : NEW_REQUEST_LABELS[role];
         var inputId = 'newreq_' + role;
         var colMeta = meta ? meta.columnsByTableAndColId[cfg.table + '.' + colId] : null;
+        // Seul "Matériel accordé" est facultatif : rien n'est encore
+        // accordé au moment de la demande, ou la décision n'est pas
+        // encore prise — la demande doit pouvoir être enregistrée sans.
+        // Tous les autres champs du formulaire restent obligatoires.
+        var isRequired = role !== 'materielAccorde';
+        var requiredAttr = isRequired ? ' required' : '';
+        var hintHtml = role === 'materielAccorde' ? '<p class="fr-hint-text">Facultatif : peut être renseigné plus tard.</p>' : '';
 
         if (colMeta && typeof colMeta.type === 'string' && colMeta.type.indexOf('Ref:') === 0) {
           var targetTableId = colMeta.type.slice(4);
@@ -2713,13 +2774,13 @@
                 return '<option value="' + escapeHtml(o.id) + '">' + escapeHtml(o.text) + '</option>';
               }).join('');
               return '<div class="fr-select-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-                '<select class="fr-select" id="' + inputId + '" data-role="' + role + '" data-kind="ref" required>' + optionsHtml + '</select></div>';
+                '<select class="fr-select" id="' + inputId + '" data-role="' + role + '" data-kind="ref"' + requiredAttr + '>' + optionsHtml + '</select>' + hintHtml + '</div>';
             })
           );
         } else if (role === 'quantite') {
           fieldPromises.push(Promise.resolve(
             '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-            '<input class="fr-input" type="number" min="1" step="1" id="' + inputId + '" data-role="' + role + '" data-kind="number" required></div>'
+            '<input class="fr-input" type="number" min="1" step="1" id="' + inputId + '" data-role="' + role + '" data-kind="number"' + requiredAttr + '></div>'
           ));
         } else if (role === 'dateDebut' || role === 'dateFin') {
           // datetime-local (plutôt que date seul) : la période de réservation
@@ -2727,17 +2788,17 @@
           // saisie à la création doit donc permettre de choisir l'heure aussi.
           fieldPromises.push(Promise.resolve(
             '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-            '<input class="fr-input" type="datetime-local" id="' + inputId + '" data-role="' + role + '" data-kind="date" required></div>'
+            '<input class="fr-input" type="datetime-local" id="' + inputId + '" data-role="' + role + '" data-kind="date"' + requiredAttr + '></div>'
           ));
         } else if (role === 'motif') {
           fieldPromises.push(Promise.resolve(
             '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-            '<textarea class="fr-input" id="' + inputId + '" data-role="' + role + '" data-kind="text" rows="3" required></textarea></div>'
+            '<textarea class="fr-input" id="' + inputId + '" data-role="' + role + '" data-kind="text" rows="3"' + requiredAttr + '></textarea></div>'
           ));
         } else {
           fieldPromises.push(Promise.resolve(
             '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-            '<input class="fr-input" type="text" id="' + inputId + '" data-role="' + role + '" data-kind="text" required></div>'
+            '<input class="fr-input" type="text" id="' + inputId + '" data-role="' + role + '" data-kind="text"' + requiredAttr + '>' + hintHtml + '</div>'
           ));
         }
       });

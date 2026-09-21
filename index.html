@@ -37,7 +37,17 @@
 <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
 
 <style>
-  :root { --bleu-france: #000091; }
+  :root {
+    --bleu-france: #000091;
+    /* Couleurs de statut (Décision / Disponibilité), réutilisées à la
+       fois pour les boutons d'action actifs (voir .req-actions plus bas)
+       et pour le liseré de couleur des cartes en vue mobile. */
+    --statut-validee: #18753c;
+    --statut-refusee: #ce0500;
+    --statut-attente: #ffd200;
+    --statut-percu: #000091;
+    --statut-reintegre: #009099;
+  }
   html, body { margin: 0; padding: 0; }
   .widget-wrap { padding: 1.5rem 1.25rem; width: 100%; box-sizing: border-box; }
   .fr-header .fr-container { width: 100%; max-width: none; }
@@ -164,11 +174,11 @@
   .req-actions .fr-btn[aria-pressed="true"] {
     color: #fff;
   }
-  .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: #18753c; }
-  .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: #ce0500; }
-  .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: #ffd200; color: #3a3a3a; }
-  .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: #000091; }
-  .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: #009099; }
+  .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: var(--statut-validee); }
+  .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: var(--statut-refusee); }
+  .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: var(--statut-attente); color: #3a3a3a; }
+  .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: var(--statut-percu); }
+  .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: var(--statut-reintegre); }
 
   .fr-table caption { text-align: left; font-weight: 700; }
 
@@ -210,15 +220,28 @@
   @media (max-width: 40rem) {
     .widget-wrap { padding: 1rem 0.75rem; }
 
-    .req-toolbar { gap: 0.5rem; }
+    /* "Nouvelle demande" devient un bouton d'action principal pleine
+       largeur, toujours en tête de la barre d'outils (avant les
+       filtres) — plus proche d'un bouton d'action d'appli mobile que
+       d'un élément noyé parmi les filtres. Reconnu par élimination : le
+       seul bouton de la barre qui n'est pas en style tertiaire. */
+    .req-toolbar { gap: 0.5rem 0.6rem; }
+    .req-toolbar > .fr-btn:not(.fr-btn--tertiary) {
+      width: 100%;
+      justify-content: center;
+      order: -1;
+      padding-top: 0.6rem;
+      padding-bottom: 0.6rem;
+    }
     /* Le compteur ("X demande(s) affichée(s) sur Y") passe sur sa
        propre ligne plutôt que de se retrouver coincé à côté des
        boutons/filtres qui ont déjà rempli toute la largeur. */
-    .req-count--push { margin-left: 0; flex-basis: 100%; }
+    .req-count--push { margin-left: 0; flex-basis: 100%; margin-top: 0.15rem; }
 
-    /* Empêche un menu de filtre ouvert près du bord droit de déborder
-       hors de l'écran sur un téléphone étroit. */
-    .dropdown-menu__list { min-width: 12rem; max-width: calc(100vw - 2.5rem); }
+    /* Menus de filtre : coins arrondis pour rester dans l'esprit des
+       cartes ci-dessous, largeur plafonnée pour ne jamais déborder d'un
+       écran de téléphone étroit. */
+    .dropdown-menu__list { min-width: 12rem; max-width: calc(100vw - 2.5rem); border-radius: 0.5rem; }
 
     .fr-table__wrapper { overflow-x: visible; }
     table.req-table {
@@ -237,38 +260,108 @@
       padding: 0;
       margin: -1px;
     }
+    /* Chaque ligne devient une carte : coins arrondis, ombre légère
+       plutôt qu'un simple filet, et un liseré de couleur à gauche qui
+       reprend la couleur de l'état actuel de la demande (voir les
+       variables --statut-* et l'attribut data-status posé côté JS dans
+       renderDemandePage / renderGestionPage) — un repère visuel
+       immédiat, sans avoir à lire le libellé. */
     table.req-table tbody tr {
       display: block;
+      background: #fff;
       border: 1px solid var(--border-default-grey);
-      border-radius: 0.25rem;
-      padding: 0.5rem 0.75rem;
-      margin-bottom: 0.75rem;
+      border-left: 0.25rem solid var(--statut-attente);
+      border-radius: 0.65rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      overflow: hidden; /* pour que le bandeau d'actions (voir plus bas) épouse les coins arrondis de la carte */
+      margin-bottom: 1rem;
     }
     table.req-table tbody tr:last-child { margin-bottom: 0; }
+    table.req-table tbody tr[data-status="validee"],
+    table.req-table tbody tr[data-status="disponible"] { border-left-color: var(--statut-validee); }
+    table.req-table tbody tr[data-status="refusee"],
+    table.req-table tbody tr[data-status="indisponible"] { border-left-color: var(--statut-refusee); }
+    table.req-table tbody tr[data-status="attente"] { border-left-color: var(--statut-attente); }
+    table.req-table tbody tr[data-status="percu"] { border-left-color: var(--statut-percu); }
+    table.req-table tbody tr[data-status="reintegre"] { border-left-color: var(--statut-reintegre); }
+
     table.req-table td {
       display: block;
-      padding: 0.4rem 0;
+      padding: 0.5rem 1rem;
       border: none;
+      font-size: 1.02em;
     }
-    table.req-table td + td { border-top: 1px solid var(--border-default-grey); }
+    /* Bandeau d'actions "Gérer la demande" (première cellule des cartes
+       de demande) : traité comme un en-tête de carte plutôt que comme un
+       champ parmi d'autres — fond légèrement teinté, boutons plus
+       grands (cibles tactiles), pas d'étiquette au-dessus (les icônes +
+       l'infobulle de chaque bouton suffisent à les identifier). */
+    table.req-table td[data-label="Gérer la demande"] {
+      background: var(--background-alt-grey, #f6f6f6);
+      border-bottom: 1px solid var(--border-default-grey);
+      padding: 0.55rem 1rem;
+    }
+    table.req-table td[data-label="Gérer la demande"]::before { display: none; }
+    .req-actions { gap: 0.4rem; }
+    .req-actions .fr-btn {
+      min-width: 2.5rem;
+      min-height: 2.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Boutons de bascule Disponible/Indisponible (cartes de gestion du
+       parc) : même agrandissement des cibles tactiles, sans bandeau (ce
+       n'est qu'un seul bouton, en dernière position de la carte). */
+    table.req-table .gestion-etat-btn { min-height: 2.5rem; padding-top: 0.35rem; padding-bottom: 0.35rem; }
+    /* Petit filet discret entre deux champs "normaux" qui se suivent —
+       mais jamais juste après le bandeau d'actions, qui a déjà son
+       propre trait de séparation ci-dessus. */
+    table.req-table td[data-label]:not([data-label="Gérer la demande"]) + td {
+      border-top: 1px dashed var(--border-default-grey);
+    }
     table.req-table td[data-label]::before {
       content: attr(data-label);
       display: block;
-      font-size: 0.72em;
+      font-size: 0.7em;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.02em;
+      letter-spacing: 0.03em;
       color: var(--text-mention-grey);
-      margin-bottom: 0.15rem;
+      margin-bottom: 0.2rem;
     }
 
-    /* Fenêtre modale "Nouvelle demande" / "Modifier la demande" : moins
-       de marge autour, et les boutons du pied de page s'empilent sur
-       toute la largeur (plus faciles à toucher qu'une rangée serrée). */
-    .newreq-overlay { padding: 1rem 0.5rem; }
-    .newreq-dialog { padding: 1.25rem; }
+    /* Fenêtre modale "Nouvelle demande" / "Modifier la demande" : plutôt
+       qu'une boîte centrée avec des marges tout autour (peu naturel au
+       doigt), elle se comporte comme une feuille ancrée en bas de
+       l'écran (motif "bottom sheet"), avec une petite poignée décorative
+       en tête ; les boutons du pied de page s'empilent sur toute la
+       largeur, plus faciles à toucher qu'une rangée serrée. */
+    .newreq-overlay { padding: 0; align-items: flex-end; }
+    .newreq-dialog {
+      max-width: none;
+      max-height: 92vh;
+      overflow-y: auto;
+      padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px));
+      border-radius: 1rem 1rem 0 0;
+      box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.25);
+    }
+    .newreq-dialog::before {
+      content: "";
+      display: block;
+      width: 2.5rem;
+      height: 0.25rem;
+      background: var(--border-default-grey);
+      border-radius: 999px;
+      margin: 0 auto 0.85rem;
+    }
     .newreq-dialog__footer { flex-direction: column-reverse; align-items: stretch; }
-    .newreq-dialog__footer button { width: 100%; justify-content: center; }
+    .newreq-dialog__footer button {
+      width: 100%;
+      justify-content: center;
+      padding-top: 0.7rem;
+      padding-bottom: 0.7rem;
+    }
     .newreq-dialog__footer .newreq-delete-btn { margin-right: 0; margin-top: 0.75rem; }
   }
 
@@ -348,7 +441,7 @@
      d'Annuler/Enregistrer. */
   .newreq-dialog__footer .newreq-delete-btn {
     margin-right: auto;
-    background-color: #ce0500;
+    background-color: var(--statut-refusee);
     color: #fff;
   }
   .newreq-dialog__footer .newreq-delete-btn:hover { background-color: #a80400; }
@@ -1833,6 +1926,25 @@
       var canReintegrer = isPercu;
       var reintegreTitle = canReintegrer ? 'Réintégré' : 'Pour être réintégrée, cette ressource doit d’abord être perçue';
 
+      // Une fois la ressource "Perçu", la décision (Validée / Refusée / En
+      // attente) est verrouillée : on ne modifie plus l'affectation tant
+      // que la ressource n'a pas été réintégrée. Les 3 boutons de décision
+      // sont donc désactivés dans ce cas, avec une infobulle dédiée plutôt
+      // que le nom de l'action.
+      var decisionLockedByPercu = isPercu;
+      var valideeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Valider';
+      var refuseeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Refuser';
+      var attenteTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Remettre en attente';
+      var canValider = !isValidee && !decisionLockedByPercu;
+      var canRefuser = !isRefusee && !decisionLockedByPercu;
+      var canAttente = !isAttente && !decisionLockedByPercu;
+
+      // Posé sur la <tr> comme attribut data-status : sert uniquement au
+      // liseré de couleur des cartes en vue mobile (voir la règle CSS
+      // table.req-table tbody tr[data-status] sous 40rem) — aucune
+      // incidence sur la logique métier, purement un repère visuel.
+      var statusKey = isValidee ? 'validee' : isRefusee ? 'refusee' : isPercu ? 'percu' : isReintegre ? 'reintegre' : 'attente';
+
       // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
       // cette demande) : signalé par un badge DSFR "Conflit" dans la
       // colonne Véhicule/Matériel demandé (l'intitulé exact de la colonne
@@ -1841,9 +1953,9 @@
       var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
 
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (isValidee ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-unarchive-line" title="' + escapeHtml(percuTitle) + '" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (!canPercevoir ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="' + escapeHtml(reintegreTitle) + '" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (!canReintegrer ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
@@ -1861,7 +1973,7 @@
         ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + '</td>'
         : '';
 
-      return '<tr data-row-id="' + r.id + '">' +
+      return '<tr data-row-id="' + r.id + '" data-status="' + statusKey + '">' +
         '<td data-label="Gérer la demande">' + actions + '</td>' +
         '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>' +
         '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>' +
@@ -1960,7 +2072,7 @@
       var badgeClass = isDisponible ? 'fr-badge--success' : 'fr-badge--error';
       var etatDisplay = etatText || cfg.valeurs.disponible;
 
-      return '<tr data-row-id="' + r.id + '">' +
+      return '<tr data-row-id="' + r.id + '" data-status="' + (isDisponible ? 'disponible' : 'indisponible') + '">' +
         '<td data-label="Identifiant">' + escapeHtml(textOf(r.identifiant)) + '</td>' +
         '<td data-label="' + escapeHtml(typeLabel) + '">' + escapeHtml(textOf(r.type)) + '</td>' +
         '<td data-label="Disponibilité">' +

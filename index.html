@@ -205,10 +205,23 @@
     gap: 1rem;
   }
   .uv-card {
+    position: relative;
     border: 1px solid var(--border-default-grey);
     border-radius: 0.5rem;
     background: #fff;
     padding: 1rem;
+    /* Marge basse supplémentaire : réserve la place pour l'icône de
+       téléchargement (voir .uv-card__download), posée en bas à droite
+       plutôt que dans le flux normal du contenu. */
+    padding-bottom: 2.75rem;
+  }
+  /* Icône de téléchargement de l'affiche de cette seule UV (voir
+     generateSingleUvPdf), en bas à droite de la carte. */
+  .uv-card__download {
+    position: absolute;
+    right: 0.5rem;
+    bottom: 0.5rem;
+    background: transparent;
   }
   /* Fond pastel selon l'occupation (voir occupancyStatusOf) : orange
      "seul en chambre", vert "complet" (occupants = capacité), rouge
@@ -2487,37 +2500,40 @@
       var occupantsHtml = g.occupants.length
         ? g.occupants.map(function (name) { return '<span class="fr-badge fr-badge--sm">' + escapeHtml(name) + '</span>'; }).join('')
         : '<span class="uv-card__empty">Aucun occupant</span>';
+      // Icône de téléchargement (affiche de cette UV seule) : omise pour
+      // une UV sans aucun occupant, comme pour l'export groupé (rien à
+      // imprimer sur cette affiche de toute façon).
+      var downloadBtn = g.occupants.length
+        ? '<button type="button" class="uv-card__download fr-btn fr-btn--tertiary fr-btn--sm fr-icon-download-line" data-action="download-single" title="Télécharger l’affiche de cette UV seule" aria-label="Télécharger l’affiche de ' + escapeHtml(formatUvTitle(g.uv)) + '"></button>'
+        : '';
       return '<div class="uv-card" data-uv="' + escapeHtml(g.uv) + '" data-occupancy="' + occupancyStatusOf(g) + '">' +
         '<div class="uv-card__header"><h3 class="uv-card__title">' + escapeHtml(formatUvTitle(g.uv)) + '</h3></div>' +
         '<div class="uv-card__occupants">' + occupantsHtml + '</div>' +
+        downloadBtn +
         '</div>';
     }).join('');
 
     zone.innerHTML = '<div class="uv-grid">' + cardsHtml + '</div>';
+
+    zone.querySelectorAll('button[data-action="download-single"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var uv = btn.closest('.uv-card').getAttribute('data-uv');
+        var g = groups.find(function (grp) { return grp.uv === uv; });
+        if (g) generateSingleUvPdf(g);
+      });
+    });
   }
 
   // ---- Export PDF "Occupants par UV" (paysage, une page par UV) -----------
   // N'exporte que les UV actuellement affichées (respecte le filtre Bât.
   // actif, le cas échéant) : générer le PDF pour un seul bâtiment, c'est
   // filtrer dessus puis cliquer sur le bouton.
-  function generateOccupantsPdf(pageKey) {
-    var cfg = settings[pageKey];
-    if (!isPageConfigComplete(pageKey, cfg)) {
-      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant de télécharger les affiches.');
-      return;
-    }
-    // Les UV sans aucun occupant n'ont pas d'affiche à produire (rien à y
-    // écrire de toute façon) : on les exclut avant de générer le PDF,
-    // plutôt que d'imprimer une page "Aucun occupant".
-    var groups = getVisibleOccupantGroups(pageKey).groups.filter(function (g) { return g.occupants.length > 0; });
-    if (!groups.length) {
-      window.alert('Aucune UV à exporter (aucune des UV affichées n’a d’occupant — vérifiez aussi le filtre Bât. et la recherche par occupant).');
-      return;
-    }
-    if (!window.jspdf || !window.jspdf.jsPDF) {
-      window.alert('Le téléchargement des affiches n’a pas pu démarrer (bibliothèque PDF indisponible).');
-      return;
-    }
+  // Construit le document jsPDF (une page par groupe), factorisé pour être
+  // utilisé à la fois par le bouton "Télécharger les affiches" (toutes les
+  // UV visibles) et par l'icône de téléchargement de chaque carte (une
+  // seule UV, voir generateSingleUvPdf) — même mise en page dans les deux
+  // cas (voir generateOccupantsPdf pour le détail du centrage).
+  function buildOccupantsPdfDoc(groups) {
     var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     // Format fixe (A4 paysage) : dimensions codées en dur plutôt que lues
     // via doc.internal.pageSize, ce qui suffit puisque le format est déjà
@@ -2552,7 +2568,53 @@
         y += NAME_LINE_H;
       });
     });
-    doc.save('affiches-hebergement.pdf');
+    return doc;
+  }
+
+  // Nom de fichier sûr pour le PDF d'une seule UV : dérivé du titre affiché
+  // (voir formatUvTitle), avec tout caractère non alphanumérique remplacé
+  // par un tiret, pour éviter les soucis d'espaces/accents/slashes dans le
+  // nom de fichier téléchargé.
+  function safeFileNamePart(s) {
+    return String(s)
+      .normalize('NFD').replace(/[̀-ͯ]/g, '') // retire les accents
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase() || 'uv';
+  }
+
+  function generateOccupantsPdf(pageKey) {
+    var cfg = settings[pageKey];
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant de télécharger les affiches.');
+      return;
+    }
+    // Les UV sans aucun occupant n'ont pas d'affiche à produire (rien à y
+    // écrire de toute façon) : on les exclut avant de générer le PDF,
+    // plutôt que d'imprimer une page "Aucun occupant".
+    var groups = getVisibleOccupantGroups(pageKey).groups.filter(function (g) { return g.occupants.length > 0; });
+    if (!groups.length) {
+      window.alert('Aucune UV à exporter (aucune des UV affichées n’a d’occupant — vérifiez aussi le filtre Bât. et la recherche par occupant).');
+      return;
+    }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      window.alert('Le téléchargement des affiches n’a pas pu démarrer (bibliothèque PDF indisponible).');
+      return;
+    }
+    buildOccupantsPdfDoc(groups).save('affiches-hebergement.pdf');
+  }
+
+  // Icône de téléchargement de chaque carte UV (voir renderOccupantsPage) :
+  // ne génère qu'une seule affiche, celle de cette UV, indépendamment du
+  // filtre Bât./de la recherche par occupant en cours — la carte n'est
+  // affichée que si elle a au moins un occupant (voir le bouton omis sinon
+  // dans renderOccupantsPage), donc pas besoin de revérifier ici.
+  function generateSingleUvPdf(g) {
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      window.alert('Le téléchargement des affiches n’a pas pu démarrer (bibliothèque PDF indisponible).');
+      return;
+    }
+    buildOccupantsPdfDoc([g]).save('affiche-' + safeFileNamePart(formatUvTitle(g.uv)) + '.pdf');
   }
 
   var occGeneratePdfBtn = document.getElementById('occGeneratePdfBtn');

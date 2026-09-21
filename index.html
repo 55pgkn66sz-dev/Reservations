@@ -1823,6 +1823,16 @@
       var isPercu = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.percu);
       var isReintegre = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.reintegre);
 
+      // "Perçu" et "Réintégré" suivent un enchaînement obligé (Acceptée/En
+      // attente → Perçu → Réintégré) : le bouton correspondant n'est
+      // cliquable que si l'état actuel le permet, sinon il reste désactivé
+      // (comme pour "déjà à cet état") mais avec une infobulle expliquant
+      // pourquoi, plutôt que de simplement répéter le nom de l'action.
+      var canPercevoir = isValidee || isAttente;
+      var percuTitle = canPercevoir ? 'Perçu' : 'La demande doit être acceptée pour faire percevoir cette ressource';
+      var canReintegrer = isPercu;
+      var reintegreTitle = canReintegrer ? 'Réintégré' : 'Pour être réintégrée, cette ressource doit d’abord être perçue';
+
       // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
       // cette demande) : signalé par un badge DSFR "Conflit" dans la
       // colonne Véhicule/Matériel demandé (l'intitulé exact de la colonne
@@ -1834,8 +1844,8 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (isValidee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-unarchive-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-unarchive-line" title="' + escapeHtml(percuTitle) + '" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (!canPercevoir ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="' + escapeHtml(reintegreTitle) + '" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (!canReintegrer ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 

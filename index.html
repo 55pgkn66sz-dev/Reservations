@@ -160,19 +160,6 @@
   .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: #000091; }
   .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: #009099; }
 
-  /* Valider bloqué par un conflit (colonne Conflit renseignée) : bouton
-     volontairement laissé focusable/survolable (aria-disabled, pas
-     l'attribut disabled) pour que l'infobulle de détail reste
-     accessible — voir le commentaire dans renderPage(). */
-  .req-actions .fr-btn[aria-disabled="true"] {
-    color: #b34000;
-    cursor: not-allowed;
-  }
-  .req-actions .fr-btn[aria-disabled="true"]:hover,
-  .req-actions .fr-btn[aria-disabled="true"]:focus {
-    background-color: transparent;
-  }
-
   .fr-table caption { text-align: left; font-weight: 700; }
 
   /* Le tableau des demandes défile horizontalement plutôt que de
@@ -513,7 +500,7 @@
             <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), l'action Valider est bloquée et son détail s'affiche en infobulle.</p>
+        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -587,7 +574,7 @@
             <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), l'action Valider est bloquée et son détail s'affiche en infobulle.</p>
+        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -782,6 +769,23 @@
     gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' }
   };
   var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', gestionVehicules: 'gestion', gestionMateriels: 'gestion' };
+
+  // gristHelper_Display / gristHelper_Display2… sont des colonnes formule
+  // internes que Grist crée automatiquement pour afficher le texte d'une
+  // colonne Référence : elles apparaissent dans fetchTable() comme des
+  // colonnes normales, mais AddRecord/UpdateRecord dessus échoue avec
+  // "Can't save value to formula column". Un mappage dessus ne peut donc
+  // jamais servir à écrire une valeur — utilisé à la fois pour les
+  // exclure des colonnes proposées dans les réglages (refreshColumnLists),
+  // pour auto-guérir un réglage déjà enregistré avec un tel mappage
+  // (mergeConfig, pageConfigFromForm), et comme ultime filet de sécurité
+  // avant chaque écriture (updateDecision, updateEtat, submitNewRequest) :
+  // si jamais un mappage invalide passait malgré tout, on préfère un
+  // message clair, nommant le rôle en cause, à l'erreur brute du bac à
+  // sable Grist.
+  function isWritableColId(colId) {
+    return !!colId && colId.indexOf('gristHelper_') !== 0;
+  }
 
   function defaultConfigFor(pageKey) {
     var col = {};
@@ -1191,7 +1195,11 @@
     cfg.table = document.getElementById(prefix + 'table').value;
     PAGE_ROLES[pageKey].forEach(function (role) {
       var el = document.getElementById(prefix + 'col_' + role);
-      if (el) cfg.col[role] = el.value;
+      // isWritableColId() est ici une pure sécurité : refreshColumnLists()
+      // ne propose déjà plus les colonnes gristHelper_Display* dans la
+      // liste, ce filtre couvre seulement le cas où la valeur du <select>
+      // aurait été forcée autrement (au clavier, script tiers…).
+      if (el && isWritableColId(el.value)) cfg.col[role] = el.value;
     });
     var defaults = PAGE_VALEURS_DEFAULT[pageKey];
     Object.keys(cfg.valeurs).forEach(function (key) {
@@ -1259,8 +1267,17 @@
       return;
     }
     grist.docApi.fetchTable(tableId).then(function (data) {
+      // gristHelper_Display / gristHelper_Display2… sont des colonnes
+      // formule internes, générées automatiquement par Grist pour
+      // afficher le texte d'une colonne Référence — elles apparaissent
+      // dans fetchTable() comme des colonnes normales, mais ne sont pas
+      // éditables (AddRecord/UpdateRecord dessus échoue avec "Can't save
+      // value to formula column"). On les exclut donc des colonnes
+      // proposées ici : la résolution d'affichage des Références se fait
+      // déjà côté widget (voir resolveReferenceColumns), il ne faut donc
+      // jamais mapper un rôle sur cette colonne technique.
       var columns = Object.keys(data || {}).filter(function (c) {
-        return c !== 'id' && c !== 'manualSort';
+        return c !== 'id' && c !== 'manualSort' && c.indexOf('gristHelper_') !== 0;
       }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
       var cfg = settings[pageKey];
       roles.forEach(function (role) {
@@ -1322,7 +1339,16 @@
   function mergeConfig(pageKey, loaded) {
     var cfg = defaultConfigFor(pageKey);
     cfg.table = loaded.table || '';
-    if (loaded.col) Object.keys(cfg.col).forEach(function (k) { if (loaded.col[k]) cfg.col[k] = loaded.col[k]; });
+    if (loaded.col) {
+      Object.keys(cfg.col).forEach(function (k) {
+        var v = loaded.col[k];
+        // Auto-guérison d'un réglage enregistré avant l'exclusion des
+        // colonnes gristHelper_Display* (voir refreshColumnLists) : un tel
+        // mappage ne peut de toute façon pas fonctionner en écriture, on
+        // l'efface pour forcer un nouveau choix plutôt que de le garder.
+        if (isWritableColId(v)) cfg.col[k] = v;
+      });
+    }
     if (loaded.valeurs) Object.keys(cfg.valeurs).forEach(function (k) { if (loaded.valeurs[k]) cfg.valeurs[k] = loaded.valeurs[k]; });
     return cfg;
   }
@@ -1520,6 +1546,11 @@
 
   function updateDecision(pageKey, rowId, newValue) {
     var cfg = settings[pageKey];
+    if (!isWritableColId(cfg.col.decision)) {
+      window.alert('Le champ « Décision » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+        'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne Décision, puis enregistrez.');
+      return;
+    }
     var action = ['UpdateRecord', cfg.table, rowId, (function () { var o = {}; o[cfg.col.decision] = newValue; return o; })()];
     grist.docApi.applyUserActions([action]).then(function () {
       // Mise à jour optimiste locale, puis on recharge pour rester en
@@ -1537,6 +1568,11 @@
   // bascule la colonne Disponibilité entre les deux libellés réglés.
   function updateEtat(pageKey, rowId, newValue) {
     var cfg = settings[pageKey];
+    if (!isWritableColId(cfg.col.etat)) {
+      window.alert('Le champ « Disponibilité » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+        'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne Disponibilité, puis enregistrez.');
+      return;
+    }
     var action = ['UpdateRecord', cfg.table, rowId, (function () { var o = {}; o[cfg.col.etat] = newValue; return o; })()];
     grist.docApi.applyUserActions([action]).then(function () {
       pageData[pageKey].rows.forEach(function (r) { if (r.id === rowId) r.etat = newValue; });
@@ -1640,40 +1676,26 @@
       var isReintegre = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.reintegre);
 
       // Conflit détecté (colonne "Conflit" configurée et renseignée pour
-      // cette demande) : bloque l'action Valider (sauf si elle est déjà
-      // la décision en vigueur — rien à valider dans ce cas) et affiche
-      // le détail en infobulle DSFR, sur le modèle des infobulles de FSJ
-      // (span.fr-tooltip relié par aria-describedby).
+      // cette demande) : signalé par un badge DSFR "Conflit" dans la
+      // colonne Véhicule/Matériel demandé, purement informatif — l'action
+      // Valider reste toujours disponible (elle n'est plus bloquée).
       var conflitText = hasConflitCol ? textOf(r.conflit) : '';
-      var validerBlocked = !!conflitText && !isValidee;
-      var validerIcon = validerBlocked ? 'fr-icon-alert-line' : 'fr-icon-check-line';
-      var validerTitle = validerBlocked ? 'Validation impossible : conflit détecté' : 'Valider';
-      var tooltipId = conflitText ? ('conflitTip_' + pageKey + '_' + r.id) : '';
 
-      // Le bouton correspondant au choix actuel est mis en évidence
-      // (aria-pressed + couleur pleine, cf. CSS .req-actions [aria-pressed])
-      // et désactivé (inutile de re-cliquer sur l'état déjà en vigueur).
-      // Un conflit non résolu utilise aria-disabled (pas l'attribut HTML
-      // disabled) afin que le bouton reste focusable/survolable : c'est
-      // ce qui permet à l'infobulle de detail de s'afficher malgré tout ;
-      // le gestionnaire de clic respecte aria-disabled comme un blocage.
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + validerIcon + '" title="' + escapeHtml(validerTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '"' +
-        (isValidee ? ' disabled' : '') +
-        (validerBlocked ? ' aria-disabled="true"' : '') +
-        (tooltipId ? ' aria-describedby="' + tooltipId + '"' : '') +
-        '></button>' +
-        (tooltipId ? '<span class="fr-tooltip fr-placement" id="' + tooltipId + '" role="tooltip">' + escapeHtml(conflitText) + '</span>' : '') +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (isValidee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-r-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
         '</div>';
+
+      var objetCell = escapeHtml(objet) +
+        (conflitText ? ' <span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
 
       return '<tr data-row-id="' + r.id + '">' +
         '<td>' + actions + '</td>' +
         '<td>' + escapeHtml(textOf(r.demandeur)) + '</td>' +
-        '<td>' + escapeHtml(objet) + '</td>' +
+        '<td>' + objetCell + '</td>' +
         '<td>' + escapeHtml(periode) + '</td>' +
         '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
         (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
@@ -1691,7 +1713,6 @@
 
     zone.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        if (btn.getAttribute('aria-disabled') === 'true') return; // bloqué par un conflit
         var tr = btn.closest('tr[data-row-id]');
         var rowId = Number(tr.getAttribute('data-row-id'));
         var target = cfg.valeurs[btn.getAttribute('data-action')];
@@ -1924,8 +1945,27 @@
 
   function submitNewRequest(pageKey) {
     var cfg = settings[pageKey];
-    var fields = {};
+
+    // Ultime filet de sécurité (voir isWritableColId ci-dessus) : si un
+    // rôle utilisé par ce formulaire pointe malgré tout vers une colonne
+    // gristHelper_Display*, on l'annonce clairement plutôt que de laisser
+    // Grist renvoyer son erreur de bac à sable après coup.
     var inputs = newRequestForm.querySelectorAll('[data-role]');
+    var badField = null;
+    inputs.forEach(function (el) {
+      if (badField) return;
+      var role = el.getAttribute('data-role');
+      if (!isWritableColId(cfg.col[role])) badField = NEW_REQUEST_LABELS[role] || role;
+    });
+    if (!badField && cfg.col.decision && !isWritableColId(cfg.col.decision)) badField = 'Décision';
+    if (!badField && cfg.col.dateDemande && !isWritableColId(cfg.col.dateDemande)) badField = 'Date de la demande';
+    if (badField) {
+      window.alert('Le champ « ' + badField + ' » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+        'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne pour ce champ, puis enregistrez.');
+      return;
+    }
+
+    var fields = {};
     inputs.forEach(function (el) {
       var role = el.getAttribute('data-role');
       var kind = el.getAttribute('data-kind');

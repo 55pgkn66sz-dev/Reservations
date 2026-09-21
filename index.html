@@ -1493,7 +1493,10 @@
     var seen = {};
     var out = [];
     pageData[pageKey].rows.forEach(function (r) {
-      var v = textOf(r[fieldName]);
+      // textOfRef (pas textOf) : évite de proposer une case à cocher "0"
+      // quand le champ est une Référence non résolue "vide" (voir
+      // textOfRef) — Demandeur/Véhicule/Matériel accordé notamment.
+      var v = textOfRef(r[fieldName]);
       if (!v) return;
       var key = normalizeKey(v);
       if (!seen[key]) { seen[key] = true; out.push(v); }
@@ -1925,6 +1928,16 @@
     }
     return String(v).trim();
   }
+  // Comme textOf(), mais pour un champ qui peut être une colonne Référence
+  // simple non résolue en texte (pas de « colonne d'affichage » réglée
+  // dans Grist, voir resolveReferenceColumns) : une Référence "vide" (rien
+  // associé) est représentée par l'entier 0 en interne chez Grist, pas par
+  // une chaîne vide — sans ce traitement, ces cellules affichaient le
+  // texte "0" au lieu d'une cellule vide. Utilisé pour Véhicule / Matériel
+  // demandé (objet) et Matériel accordé, qui peuvent être des Références.
+  function textOfRef(v) {
+    return v === 0 ? '' : textOf(v);
+  }
   // Même décodage que textOf() (colonne Liste de choix / Références
   // multiples), mais renvoie un tableau plutôt qu'un texte joint : utilisé
   // par la page "Occupants par UV" (un badge par occupant, une ligne par
@@ -2096,7 +2109,7 @@
         // Etat = « Réintégré ».
         return false;
       }
-      if (filters.demandeur.length && filters.demandeur.indexOf(textOf(r.demandeur)) === -1) return false;
+      if (filters.demandeur.length && filters.demandeur.indexOf(textOfRef(r.demandeur)) === -1) return false;
       return true;
     });
 
@@ -2122,6 +2135,12 @@
     }
 
     var hasQuantite = pageKey === 'materiels' && !!cfg.col.quantite;
+    // "AE" par défaut pour une valeur Demandeur vide (voir demandeurCell
+    // plus bas) ne s'applique que si la colonne Demandeur est réglée —
+    // sinon (rôle non mappé, voir "Demandeur/Véhicule optionnels côté
+    // véhicules") la cellule reste simplement vide, comme les autres
+    // colonnes démappées.
+    var hasDemandeurCol = !!cfg.col.demandeur;
     // Colonne "Matériel accordé" : propre à la page matériels, affichée
     // juste après "Matériel demandé" uniquement si une colonne lui est
     // réglée (voir mat_col_materielAccorde) — absente côté véhicules,
@@ -2152,7 +2171,7 @@
     var hasConflitCol = !!cfg.col.conflit;
 
     var body = rows.map(function (r) {
-      var objet = textOf(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
+      var objet = textOfRef(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
       // Date de début, puis retour à la ligne, puis "→ date de fin" (au
       // lieu d'une seule ligne "début → fin") : plus lisible dans une
       // colonne étroite, voir periodeCell ci-dessous.
@@ -2225,11 +2244,15 @@
       // <thead> est masqué visuellement, et ce data-label sert alors
       // d'étiquette pour chaque cellule via ::before.
       var materielAccordeCell = hasMaterielAccorde
-        ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</td>'
+        ? '<td data-label="Matériel accordé">' + escapeHtml(textOfRef(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</td>'
         : '';
 
       var gererCell = '<td data-label="Gérer la demande">' + actions + '</td>';
-      var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>';
+      // "AE" par défaut si Demandeur est vide pour cette ligne (y compris
+      // le cas Référence "vide" = 0, voir textOfRef) — mais seulement si
+      // la colonne Demandeur est réglée (voir hasDemandeurCol) ; sinon la
+      // cellule reste vide, comme avant.
+      var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(hasDemandeurCol ? (textOfRef(r.demandeur) || 'AE') : textOfRef(r.demandeur)) + '</td>';
       var objetCellFull = '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>';
       var periodeCell = '<td data-label="Période souhaitée">' + periode + '</td>';
       var motifCell = '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>';

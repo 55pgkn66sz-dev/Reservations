@@ -52,19 +52,15 @@
     --statut-percu: #000091;
     --statut-reintegre: #009099;
     /* Fonds pastel des cartes UV (page "Hébergement"), selon l'occupation
-       — voir occupancyStatusOf() côté script. */
+       — voir occupancyStatusOf() côté script. Réutilisés aussi pour les
+       cartes du parc (Disponible/Indisponible, voir table.req-table
+       tbody tr sous 40rem) pour une palette cohérente dans tout le
+       widget. Les cartes de demande (.req-card, voir plus bas) utilisent
+       en revanche les teintes pleines --statut-* ci-dessus directement
+       comme fond de carte, plutôt qu'une version pastel. */
     --uv-pastel-alone: #fdead2;
     --uv-pastel-full: #e0f3e4;
     --uv-pastel-over: #fbe1e0;
-    /* Fonds pastel des cartes de demande en vue mobile (voir plus bas,
-       table.req-table tbody tr sous 40rem) : même principe que les fonds
-       pastel des cartes UV ci-dessus, décliné pour chaque --statut-*.
-       Réutilise volontairement --uv-pastel-full (vert) pour "validée"/
-       "disponible" et --uv-pastel-over (rouge) pour "refusée"/
-       "indisponible", pour une palette cohérente dans tout le widget. */
-    --statut-pastel-attente: #fff6d6;
-    --statut-pastel-percu: #e3e3f7;
-    --statut-pastel-reintegre: #daf2f2;
   }
   html, body { margin: 0; padding: 0; }
   .widget-wrap { padding: 1.5rem 1.25rem; width: 100%; box-sizing: border-box; }
@@ -305,13 +301,77 @@
   .uv-card__occupants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .uv-card__empty { color: var(--text-mention-grey); font-size: 0.9em; font-style: italic; }
 
-  /* Le tableau des demandes défile horizontalement plutôt que de
-     comprimer ou de rogner ses colonnes, à partir d'une largeur d'écran
-     suffisante (voir la règle @media plus bas pour la vue mobile, en
-     dessous de laquelle le tableau devient une pile de cartes plutôt
-     que de défiler). Les largeurs de colonnes elles-mêmes sont fixées
-     en ligne (style="width:…%") dans le <th> correspondant, proportion-
-     nées à leur contenu habituel. */
+  /* ---- Cartes de demande (pages "Véhicules" / "Matériels", voir
+     renderDemandePage) : une carte par demande, à toutes les tailles
+     d'écran — plus de tableau ici (voir table.req-table plus bas,
+     désormais réservé aux pages "Gérer le parc"). Même principe que
+     .uv-grid/.uv-card ci-dessus (grille responsive, une carte par
+     enregistrement), mais le fond de la carte reprend directement la
+     couleur PLEINE de l'état de la demande (--statut-*, la même que
+     l'étiquette Décision) plutôt qu'un ton pastel : l'état se voit de
+     loin, sans avoir à lire le texte. ---- */
+  .req-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+    gap: 1rem;
+  }
+  .req-card {
+    border: 1px solid var(--border-default-grey);
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 1rem;
+  }
+  .req-card__line { margin: 0 0 0.5rem; line-height: 1.4; }
+  .req-card__line:last-of-type { margin-bottom: 0.85rem; }
+  /* Étiquette de champ sobre : texte normal (pas de majuscules/gras),
+     légèrement atténuée par rapport à la valeur — s'adapte automatique-
+     ment à la couleur du texte de la carte (blanc ou sombre selon
+     data-status ci-dessous) plutôt qu'une couleur grise fixe, qui
+     manquerait de contraste sur un fond de statut saturé. */
+  .req-card__label { opacity: 0.75; }
+  /* États de la demande : mêmes couleurs pleines --statut-* que
+     l'ancienne étiquette Décision et que les boutons actifs de
+     .req-actions — texte blanc sur les fonds foncés/saturés, texte
+     sombre sur le fond jaune clair de "En attente" (meilleur contraste). */
+  .req-card[data-status="validee"] { background: var(--statut-validee); color: #fff; border-color: var(--statut-validee); }
+  .req-card[data-status="refusee"] { background: var(--statut-refusee); color: #fff; border-color: var(--statut-refusee); }
+  .req-card[data-status="attente"] { background: var(--statut-attente); color: #3a3a3a; border-color: var(--statut-attente); }
+  .req-card[data-status="percu"] { background: var(--statut-percu); color: #fff; border-color: var(--statut-percu); }
+  .req-card[data-status="reintegre"] { background: var(--statut-reintegre); color: #fff; border-color: var(--statut-reintegre); }
+  /* Rangée d'icônes d'action, sous le contenu de la carte (plutôt qu'en
+     bandeau au-dessus comme dans l'ancienne version tableau) : chaque
+     bouton reçoit un fond clair semi-opaque ("pastille") pour rester
+     visible et identifiable quelle que soit la couleur, potentiellement
+     saturée, de la carte sous-jacente — un bouton tertiaire "nu" s'y
+     fondrait complètement. */
+  .req-card__actions {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+  }
+  /* Exclusions explicites (:not) plutôt qu'un pari sur la spécificité :
+     .req-switch[data-status="percu"/"reintegre"] a exactement la même
+     spécificité que .req-card__actions .fr-btn (une classe + un
+     sélecteur), donc sans ces :not() l'ordre d'apparition dans la feuille
+     de style déciderait du gagnant — fragile. Ici, seuls les boutons
+     réellement inactifs reçoivent la pastille blanche ; un bouton
+     "pressé" (Valider/Refuser/Attente actifs) ou l'interrupteur Perçu/
+     Réintégré une fois dans cet état gardent leur propre fond plein
+     coloré (voir plus haut .req-actions .fr-btn[data-action="…"]
+     [aria-pressed="true"] et .req-switch[data-status="…"]). */
+  .req-card__actions .fr-btn:not([aria-pressed="true"]):not(.req-switch[data-status="percu"]):not(.req-switch[data-status="reintegre"]) {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #1e1e1e;
+  }
+
+  /* Le tableau des pages "Gérer le parc" (véhicules/matériels, voir
+     renderGestionPage) défile horizontalement plutôt que de comprimer ou
+     de rogner ses colonnes, à partir d'une largeur d'écran suffisante
+     (voir la règle @media plus bas pour la vue mobile, en dessous de
+     laquelle le tableau devient une pile de cartes plutôt que de
+     défiler). Les largeurs de colonnes elles-mêmes sont fixées en ligne
+     (style="width:…%") dans le <th> correspondant, proportionnées à leur
+     contenu habituel. */
   .fr-table__wrapper { overflow-x: auto; }
   table.req-table {
     table-layout: fixed;
@@ -389,31 +449,26 @@
     }
     /* Chaque ligne devient une carte, sur le même principe que les cartes
        UV (.uv-card ci-dessus) : mêmes coins arrondis (0.5rem), pas
-       d'ombre, un fond pastel qui reprend l'état actuel de la demande
-       (voir les variables --statut-pastel-* et --uv-pastel-*, et
-       l'attribut data-status posé côté JS dans renderDemandePage /
-       renderGestionPage) — un repère visuel immédiat, sans avoir à lire
-       le libellé. Le liseré de couleur à gauche (--statut-* pleine
-       teinte) vient en plus, pour rester repérable même en cas de fond
-       pastel proche d'un autre (ex. distinguer "Perçu"/bleu de
-       "Réintégré"/turquoise d'un coup d'œil). */
+       d'ombre, un fond pastel qui reprend l'état actuel (Disponible/
+       Indisponible — voir occupancyStatusOf/--uv-pastel-* et l'attribut
+       data-status posé côté JS dans renderGestionPage) — un repère
+       visuel immédiat, sans avoir à lire le libellé. Le liseré de couleur
+       à gauche (--statut-* pleine teinte) vient en plus. Ne concerne plus
+       que les pages "Gérer le parc" : les pages de demandes utilisent
+       désormais les cartes .req-card ci-dessus, à toutes les tailles
+       d'écran (plus de tableau). */
     table.req-table tbody tr {
       display: block;
       background: #fff;
       border: 1px solid var(--border-default-grey);
       border-left: 0.25rem solid var(--statut-attente);
       border-radius: 0.5rem;
-      overflow: hidden; /* pour que le bandeau d'actions (voir plus bas) épouse les coins arrondis de la carte */
+      overflow: hidden;
       margin-bottom: 1rem;
     }
     table.req-table tbody tr:last-child { margin-bottom: 0; }
-    table.req-table tbody tr[data-status="validee"],
     table.req-table tbody tr[data-status="disponible"] { border-left-color: var(--statut-validee); background: var(--uv-pastel-full); }
-    table.req-table tbody tr[data-status="refusee"],
     table.req-table tbody tr[data-status="indisponible"] { border-left-color: var(--statut-refusee); background: var(--uv-pastel-over); }
-    table.req-table tbody tr[data-status="attente"] { border-left-color: var(--statut-attente); background: var(--statut-pastel-attente); }
-    table.req-table tbody tr[data-status="percu"] { border-left-color: var(--statut-percu); background: var(--statut-pastel-percu); }
-    table.req-table tbody tr[data-status="reintegre"] { border-left-color: var(--statut-reintegre); background: var(--statut-pastel-reintegre); }
 
     table.req-table td {
       display: block;
@@ -421,20 +476,6 @@
       border: none;
       font-size: 1.02em;
     }
-    /* Bandeau d'actions "Gérer la demande" (première cellule des cartes
-       de demande) : traité comme un en-tête de carte plutôt que comme un
-       champ parmi d'autres — léger voile sombre semi-transparent (plutôt
-       qu'un gris plein) pour rester lisible quel que soit le fond pastel
-       de la carte (voir table.req-table tbody tr[data-status] ci-dessus),
-       boutons plus grands (cibles tactiles), pas d'étiquette au-dessus
-       (les icônes + l'infobulle de chaque bouton suffisent à les
-       identifier). */
-    table.req-table td[data-label="Gérer la demande"] {
-      background: rgba(0, 0, 0, 0.05);
-      border-bottom: 1px solid var(--border-default-grey);
-      padding: 0.55rem 1rem;
-    }
-    table.req-table td[data-label="Gérer la demande"]::before { display: none; }
     .req-actions { gap: 0.4rem; }
     .req-actions .fr-btn {
       min-width: 2.5rem;
@@ -443,14 +484,11 @@
       align-items: center;
       justify-content: center;
     }
-    /* Boutons de bascule Disponible/Indisponible (cartes de gestion du
-       parc) : même agrandissement des cibles tactiles, sans bandeau (ce
-       n'est qu'un seul bouton, en dernière position de la carte). */
+    /* Bouton de bascule Disponible/Indisponible (cartes de gestion du
+       parc) : même agrandissement des cibles tactiles. */
     table.req-table .gestion-etat-btn { min-height: 2.5rem; padding-top: 0.35rem; padding-bottom: 0.35rem; }
-    /* Petit filet discret entre deux champs "normaux" qui se suivent —
-       mais jamais juste après le bandeau d'actions, qui a déjà son
-       propre trait de séparation ci-dessus. */
-    table.req-table td[data-label]:not([data-label="Gérer la demande"]) + td {
+    /* Petit filet discret entre deux champs qui se suivent. */
+    table.req-table td[data-label] + td {
       border-top: 1px dashed var(--border-default-grey);
     }
     table.req-table td[data-label]::before {
@@ -1345,7 +1383,16 @@
     var selected = activeFilters[pageKey][filterKey];
     var btn = filterEls[pageKey][filterKey].btn;
     var label = filterFieldLabels[pageKey][filterKey];
-    btn.textContent = selected.length ? (label + ' (' + selected.length + ')') : label;
+    // Filtre "Etat" (pages de demandes) : tant que l'utilisateur n'a coché
+    // aucune case lui-même, le tableau activeFilters reste vide — mais les
+    // lignes affichées ne sont pas pour autant "toutes" : "Réintégré" est
+    // masqué par défaut (voir plus bas, dans renderDemandePage). Le bouton
+    // affiche donc le nombre de valeurs concernées par ce filtre préchargé
+    // (defaultDecisionFilterValues), recalculé à chaque appel pour suivre
+    // les valeurs de décision réellement présentes, plutôt que de rester
+    // muet sur un filtre pourtant actif.
+    var count = selected.length || (filterKey === 'decision' ? defaultDecisionFilterValues(pageKey).length : 0);
+    btn.textContent = count ? (label + ' (' + count + ')') : label;
   }
 
   // Coche/décoche une valeur pour ce filtre (sélection multiple : chaque
@@ -1353,6 +1400,15 @@
   // aussitôt — sans fermer le menu, pour pouvoir en cocher plusieurs à
   // la suite.
   function toggleFilterValue(pageKey, filterKey, value) {
+    // Filtre "Etat" : au tout premier clic sur une case alors qu'aucun
+    // filtre explicite n'a encore été posé (tableau vide, voir
+    // updateFilterButtonLabel), on matérialise d'abord la sélection
+    // préchargée (tout sauf "Réintégré") avant d'appliquer le clic — sans
+    // quoi cocher/décocher une case partirait d'une liste vide au lieu de
+    // ce que l'utilisateur voit réellement coché à l'écran.
+    if (filterKey === 'decision' && !activeFilters[pageKey][filterKey].length) {
+      activeFilters[pageKey][filterKey] = defaultDecisionFilterValues(pageKey);
+    }
     var selected = activeFilters[pageKey][filterKey];
     var idx = selected.indexOf(value);
     if (idx === -1) selected.push(value); else selected.splice(idx, 1);
@@ -1421,7 +1477,16 @@
       if (searchable) li.setAttribute('data-filter-value', value);
       var label = document.createElement('label');
       label.className = 'dropdown-menu__item dropdown-menu__item--checkbox';
-      var isChecked = selected.indexOf(value) !== -1;
+      // Filtre "Etat" : tant qu'aucune case n'a été cochée explicitement
+      // (tableau vide, voir toggleFilterValue), les cases des vraies
+      // valeurs de décision (pas le pseudo-choix "Conflit") apparaissent
+      // précochées, sauf "Réintégré" — reflète à l'écran le filtre
+      // préchargé par défaut (voir defaultDecisionFilterValues) au lieu de
+      // montrer un menu vide alors que "Réintégré" est déjà masqué.
+      var isChecked = selected.length
+        ? selected.indexOf(value) !== -1
+        : (filterKey === 'decision' && value !== CONFLIT_FILTER_VALUE &&
+           normalizeKey(value) !== normalizeKey(settings[pageKey].valeurs.reintegre));
       if (isChecked) label.classList.add('dropdown-menu__item--checked');
       var checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
@@ -1542,6 +1607,24 @@
     });
     out.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
     return out;
+  }
+
+  // Valeurs préchargées par défaut du filtre "Etat" (pages de demandes
+  // uniquement) : toutes les valeurs de décision réellement rencontrées
+  // dans les données, sauf celles correspondant à « Réintégré ». Reprend
+  // ce que le filtrage des lignes masquait déjà silencieusement par
+  // défaut (voir plus bas, "Par défaut (aucun filtre Etat actif)..."),
+  // mais cette fois sous forme de sélection explicite : le bouton "Etat"
+  // affiche alors "(n)" et les cases correspondantes apparaissent cochées,
+  // au lieu d'un masquage invisible. Recalculée à chaque appel (pas figée
+  // une fois pour toutes) pour suivre les valeurs de décision réellement
+  // présentes au moment du calcul.
+  function defaultDecisionFilterValues(pageKey) {
+    var cfg = settings[pageKey];
+    var reintegreKey = normalizeKey(cfg.valeurs.reintegre);
+    return getAllFieldValues(pageKey, 'decision').filter(function (v) {
+      return normalizeKey(v) !== reintegreKey;
+    });
   }
 
   // Le filtre "Etat" propose l'option pseudo-décision "Conflit" (voir
@@ -2113,7 +2196,6 @@
     var cfg = settings[pageKey];
     var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
     var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
-    var objetLabel = pageKey === 'vehicules' ? 'Véhicule' : 'Matériel demandé';
 
     if (!isPageConfigComplete(pageKey, cfg)) {
       countEl.textContent = '';
@@ -2132,6 +2214,12 @@
       zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
       return;
     }
+
+    // Tient à jour le libellé du bouton "Etat" à chaque rendu (pas
+    // seulement lors d'un clic sur une case) : le nombre de valeurs
+    // couvertes par le filtre préchargé par défaut peut changer au fil des
+    // données (nouvelles décisions rencontrées), voir updateFilterButtonLabel.
+    updateFilterButtonLabel(pageKey, 'decision');
 
     var all = pageData[pageKey].rows;
     var filters = activeFilters[pageKey];
@@ -2186,35 +2274,28 @@
     // comme les autres rôles propres à MATERIEL_ROLES.
     var hasMaterielAccorde = pageKey === 'materiels' && !!cfg.col.materielAccorde;
 
-    // Largeurs proportionnées (en %) des colonnes, dans leur ordre
-    // d'affichage — la colonne Décision (boutons de décision) est
-    // placée en premier, pour rester visible même sur un panneau de
-    // widget étroit, plutôt que de risquer d'être coupée tout à droite.
-    // Sur la page matériels, "Période souhaitée" est placée avant
-    // "Matériel demandé" (ordre inversé par rapport à la page véhicules),
-    // et "Matériel accordé" est la toute dernière colonne du tableau.
     var isMateriels = pageKey === 'materiels';
-    var colWidths = isMateriels
-      ? (hasMaterielAccorde ? [16, 12, 14, 15, 24, 19] : [18, 14, 17, 19, 32])
-      : [18, 14, 19, 17, 32];
-
-    var headCells = isMateriels
-      ? (hasMaterielAccorde
-          ? ['Gérer la demande', 'Demandeur', 'Période souhaitée', escapeHtml(objetLabel), 'Motif', 'Matériel accordé']
-          : ['Gérer la demande', 'Demandeur', 'Période souhaitée', escapeHtml(objetLabel), 'Motif'])
-      : ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
-    var head = '<tr>' + headCells.map(function (label, i) {
-      return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
-    }).join('') + '</tr>';
+    // Intitulé du champ "objet" de la demande sur la carte (voir
+    // objetLine plus bas) — distinct du libellé "Véhicule"/"Matériel
+    // demandé" utilisé pour le champ du formulaire "Nouvelle demande"
+    // (voir objetLabel dans openNewRequestModal/openEditRequestModal).
+    var objetSoliciteLabel = isMateriels ? 'Matériel sollicité' : 'Véhicule sollicité';
 
     var hasConflitCol = !!cfg.col.conflit;
 
+    // Ressource physique réellement associée à une demande, utilisée pour
+    // détecter un conflit de "Perçu" entre deux réservations (voir
+    // canPercevoir plus bas) : le matériel accordé quand la colonne est
+    // réglée ET renseignée pour cette ligne (matériels), sinon le
+    // véhicule/matériel demandé — comparaison insensible à la casse et
+    // aux accents (normalizeKey), comme pour les libellés de décision.
+    function resourceKeyOf(row) {
+      var val = (hasMaterielAccorde ? textOfRef(row.materielAccorde) : '') || textOfRef(row.objet);
+      return val ? normalizeKey(val) : '';
+    }
+
     var body = rows.map(function (r) {
       var objet = textOfRef(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
-      // Date de début, puis retour à la ligne, puis "→ date de fin" (au
-      // lieu d'une seule ligne "début → fin") : plus lisible dans une
-      // colonne étroite, voir periodeCell ci-dessous.
-      var periode = escapeHtml(fmtDate(r.dateDebut)) + '<br>→ ' + escapeHtml(fmtDate(r.dateFin));
       var decisionText = textOf(r.decision);
 
       var isValidee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.validee);
@@ -2228,8 +2309,27 @@
       // cliquable que si l'état actuel le permet, sinon il reste désactivé
       // (comme pour "déjà à cet état") mais avec une infobulle expliquant
       // pourquoi, plutôt que de simplement répéter le nom de l'action.
-      var canPercevoir = isValidee || isAttente;
-      var percuTitle = canPercevoir ? 'Perçu' : 'La demande doit être acceptée pour faire percevoir cette ressource';
+      var acceptablePourPercevoir = isValidee || isAttente;
+
+      // Une même ressource physique (véhicule, ou matériel accordé) ne
+      // peut pas être "Perçue" sur deux réservations à la fois : si une
+      // AUTRE réservation portant sur la même ressource est encore
+      // "Perçue" (pas encore "Réintégrée" depuis une réservation
+      // précédente), on bloque le passage à "Perçu" ici plutôt que de
+      // laisser une double perception se produire silencieusement.
+      var myResourceKey = resourceKeyOf(r);
+      var blockingPercuRow = myResourceKey ? all.find(function (other) {
+        return other.id !== r.id &&
+          resourceKeyOf(other) === myResourceKey &&
+          normalizeKey(textOf(other.decision)) === normalizeKey(cfg.valeurs.percu);
+      }) : null;
+
+      var canPercevoir = acceptablePourPercevoir && !blockingPercuRow;
+      var percuTitle = !acceptablePourPercevoir
+        ? 'La demande doit être acceptée pour faire percevoir cette ressource'
+        : blockingPercuRow
+        ? 'Cette ressource est déjà perçue sur une autre demande : elle doit d’abord être réintégrée'
+        : 'Perçu';
       var canReintegrer = isPercu;
       var reintegreTitle = canReintegrer ? 'Réintégré' : 'Pour être réintégrée, cette ressource doit d’abord être perçue';
 
@@ -2269,10 +2369,10 @@
       var canValider = !isValidee && !decisionLockedByPercu;
       var canRefuser = !isRefusee && !decisionLockedByPercu;
 
-      // Posé sur la <tr> comme attribut data-status : sert uniquement au
-      // liseré de couleur des cartes en vue mobile (voir la règle CSS
-      // table.req-table tbody tr[data-status] sous 40rem) — aucune
-      // incidence sur la logique métier, purement un repère visuel.
+      // Posé sur la carte comme attribut data-status : pilote la couleur
+      // de fond pleine de la carte (voir CSS .req-card[data-status]),
+      // celle-là même de l'étiquette Décision — aucune incidence sur la
+      // logique métier, purement un repère visuel.
       var statusKey = isValidee ? 'validee' : isRefusee ? 'refusee' : isPercu ? 'percu' : isReintegre ? 'reintegre' : 'attente';
 
       // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
@@ -2295,7 +2395,7 @@
       // bouton actif correspondant (voir CSS .req-switch[data-status]).
       var percuSwitchStatus = isPercu ? 'percu' : isReintegre ? 'reintegre' : '';
 
-      var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
+      var actions = '<div class="req-card__actions req-actions" role="group" aria-label="Actions">' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
@@ -2303,50 +2403,33 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 
-      var objetCell = escapeHtml(objet) + (conflitInAccordeCol ? '' : conflitBadgeHtml);
-
-      // L'attribut data-label sur chaque <td> reprend l'intitulé de sa
-      // colonne : en vue mobile (voir la règle CSS table.req-table sous
-      // 40rem), le tableau se transforme en une pile de cartes où l'en-tête
-      // <thead> est masqué visuellement, et ce data-label sert alors
-      // d'étiquette pour chaque cellule via ::before.
-      var materielAccordeCell = hasMaterielAccorde
-        ? '<td data-label="Matériel accordé">' + escapeHtml(textOfRef(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</td>'
+      // Carte sobre : une ligne par champ ("Libellé : valeur"), sans
+      // tableau — voir .req-card / .req-card__line dans le CSS. Le nom du
+      // demandeur est mis en avant (en gras), les autres champs restent
+      // en texte normal. Le badge "Conflit" (voir plus haut) reste
+      // accolé à la ressource sollicitée, ou au matériel accordé quand
+      // cette colonne remplace la ressource sollicitée dans la décision
+      // d'affectation (conflitInAccordeCol).
+      var demandeurValue = hasDemandeurCol ? (textOfRef(r.demandeur) || 'AE') : textOfRef(r.demandeur);
+      var demandeurLine = '<p class="req-card__line"><span class="req-card__label">Demandeur :</span> <strong>' + escapeHtml(demandeurValue) + '</strong></p>';
+      var objetLine = '<p class="req-card__line"><span class="req-card__label">' + escapeHtml(objetSoliciteLabel) + ' :</span> ' + escapeHtml(objet) + (conflitInAccordeCol ? '' : conflitBadgeHtml) + '</p>';
+      var periodeLine = '<p class="req-card__line"><span class="req-card__label">Période :</span> ' + escapeHtml(fmtDate(r.dateDebut)) + ' → ' + escapeHtml(fmtDate(r.dateFin)) + '</p>';
+      var motifLine = '<p class="req-card__line"><span class="req-card__label">Motif :</span> ' + escapeHtml(textOf(r.motif)) + '</p>';
+      var materielAccordeLine = hasMaterielAccorde
+        ? '<p class="req-card__line"><span class="req-card__label">Matériel accordé :</span> ' + escapeHtml(textOfRef(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</p>'
         : '';
 
-      var gererCell = '<td data-label="Gérer la demande">' + actions + '</td>';
-      // "AE" par défaut si Demandeur est vide pour cette ligne (y compris
-      // le cas Référence "vide" = 0, voir textOfRef) — mais seulement si
-      // la colonne Demandeur est réglée (voir hasDemandeurCol) ; sinon la
-      // cellule reste vide, comme avant.
-      var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(hasDemandeurCol ? (textOfRef(r.demandeur) || 'AE') : textOfRef(r.demandeur)) + '</td>';
-      var objetCellFull = '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>';
-      var periodeCell = '<td data-label="Période souhaitée">' + periode + '</td>';
-      var motifCell = '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>';
+      var cardLines = demandeurLine + objetLine + periodeLine + motifLine + materielAccordeLine;
 
-      // Sur la page matériels : Période souhaitée avant Matériel demandé
-      // (ordre inversé par rapport à véhicules), Matériel accordé en
-      // dernière colonne. Sur véhicules, ordre inchangé.
-      var rowCells = isMateriels
-        ? gererCell + demandeurCell + periodeCell + objetCellFull + motifCell + materielAccordeCell
-        : gererCell + demandeurCell + objetCellFull + periodeCell + motifCell;
-
-      return '<tr data-row-id="' + r.id + '" data-status="' + statusKey + '">' + rowCells + '</tr>';
+      return '<div class="req-card" data-row-id="' + r.id + '" data-status="' + statusKey + '">' + cardLines + actions + '</div>';
     }).join('');
 
-    zone.innerHTML =
-      '<div class="fr-table fr-table--bordered">' +
-      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
-      '<table class="req-table"><caption class="fr-sr-only">' + escapeHtml(objetLabel + 's') + '</caption>' +
-      '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
-      '</table>' +
-      '</div></div></div>' +
-      '</div>';
+    zone.innerHTML = '<div class="req-cards">' + body + '</div>';
 
     zone.querySelectorAll('button[data-action]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var tr = btn.closest('tr[data-row-id]');
-        var rowId = Number(tr.getAttribute('data-row-id'));
+        var card = btn.closest('.req-card[data-row-id]');
+        var rowId = Number(card.getAttribute('data-row-id'));
         var action = btn.getAttribute('data-action');
         if (action === 'edit') {
           openEditRequestModal(pageKey, rowId);

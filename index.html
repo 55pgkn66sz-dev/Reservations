@@ -132,6 +132,25 @@
 
   .fr-table caption { text-align: left; font-weight: 700; }
 
+  /* Le tableau des demandes défile horizontalement plutôt que de
+     comprimer ou de rogner ses colonnes sur un panneau de widget
+     étroit (la largeur minimale garantit que chaque colonne, y compris
+     Action tout à gauche et Décision, reste lisible). Les largeurs de
+     colonnes elles-mêmes sont fixées en ligne (style="width:…%") dans
+     le <th> correspondant, proportionnées à leur contenu habituel. */
+  .fr-table__wrapper { overflow-x: auto; }
+  table.req-table {
+    table-layout: fixed;
+    width: 100%;
+    min-width: 60rem;
+  }
+  table.req-table th,
+  table.req-table td {
+    overflow-wrap: break-word;
+    word-break: break-word;
+    vertical-align: top;
+  }
+
   .settings-section + .settings-section { margin-top: 2rem; }
   .settings-grid {
     display: grid;
@@ -210,9 +229,15 @@
     <div class="req-toolbar fr-mb-2w">
       <div class="dropdown-menu" id="vehFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehFilterList">
-          Filtrer
+          Décision
         </button>
-        <ul class="dropdown-menu__list" id="vehFilterList" role="menu" aria-label="Filtrer les demandes de véhicules" hidden></ul>
+        <ul class="dropdown-menu__list" id="vehFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par décision" hidden></ul>
+      </div>
+      <div class="dropdown-menu" id="vehDemandeurFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehDemandeurFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehDemandeurFilterList">
+          Demandeur
+        </button>
+        <ul class="dropdown-menu__list" id="vehDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par demandeur" hidden></ul>
       </div>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
         Actualiser
@@ -230,9 +255,15 @@
     <div class="req-toolbar fr-mb-2w">
       <div class="dropdown-menu" id="matFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matFilterList">
-          Filtrer
+          Décision
         </button>
-        <ul class="dropdown-menu__list" id="matFilterList" role="menu" aria-label="Filtrer les demandes de matériels" hidden></ul>
+        <ul class="dropdown-menu__list" id="matFilterList" role="menu" aria-label="Filtrer les demandes de matériels par décision" hidden></ul>
+      </div>
+      <div class="dropdown-menu" id="matDemandeurFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matDemandeurFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matDemandeurFilterList">
+          Demandeur
+        </button>
+        <ul class="dropdown-menu__list" id="matDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de matériels par demandeur" hidden></ul>
       </div>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matRefreshBtn" type="button">
         Actualiser
@@ -383,7 +414,7 @@
 </div>
 
 <footer class="widget-footer" role="contentinfo">
-  <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026 — sur le modèle du widget « Feuille de service journalier »</p>
+  <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026</p>
 </footer>
 
 <!-- DSFR : comportements JS (non indispensable ici, mais recommandé par le DSFR) -->
@@ -888,16 +919,19 @@
     var hasQuantite = pageKey === 'materiels' && !!cfg.col.quantite;
     var hasCommentaire = !!cfg.col.commentaire;
 
-    var head = '<tr>' +
-      '<th scope="col">Demandeur</th>' +
-      '<th scope="col">Date de la demande</th>' +
-      '<th scope="col">' + escapeHtml(objetLabel) + '</th>' +
-      '<th scope="col">Période souhaitée</th>' +
-      '<th scope="col">Motif</th>' +
-      '<th scope="col">Décision</th>' +
-      (hasCommentaire ? '<th scope="col">Commentaire</th>' : '') +
-      '<th scope="col">Action</th>' +
-      '</tr>';
+    // Largeurs proportionnées (en %) des colonnes, dans leur ordre
+    // d'affichage — la colonne Action (boutons de décision) est placée
+    // en premier, pour rester visible même sur un panneau de widget
+    // étroit, plutôt que de risquer d'être coupée tout à droite.
+    var colWidths = hasCommentaire
+      ? [9, 10, 10, 13, 12, 19, 10, 17]
+      : [10, 12, 11, 15, 14, 26, 12];
+
+    var headCells = ['Action', 'Demandeur', 'Date de la demande', escapeHtml(objetLabel), 'Période souhaitée', 'Motif', 'Décision'];
+    if (hasCommentaire) headCells.push('Commentaire');
+    var head = '<tr>' + headCells.map(function (label, i) {
+      return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
+    }).join('') + '</tr>';
 
     var body = rows.map(function (r) {
       var objet = textOf(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
@@ -916,6 +950,7 @@
         '</div>';
 
       return '<tr data-row-id="' + r.id + '">' +
+        '<td>' + actions + '</td>' +
         '<td>' + escapeHtml(textOf(r.demandeur)) + '</td>' +
         '<td>' + escapeHtml(fmtDate(r.dateDemande)) + '</td>' +
         '<td>' + escapeHtml(objet) + '</td>' +
@@ -923,14 +958,13 @@
         '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
         '<td>' + badge + '</td>' +
         (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
-        '<td>' + actions + '</td>' +
         '</tr>';
     }).join('');
 
     zone.innerHTML =
       '<div class="fr-table fr-table--bordered">' +
       '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
-      '<table><caption class="fr-sr-only">' + escapeHtml(objetLabel + 's') + '</caption>' +
+      '<table class="req-table"><caption class="fr-sr-only">' + escapeHtml(objetLabel + 's') + '</caption>' +
       '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
       '</table>' +
       '</div></div></div>' +

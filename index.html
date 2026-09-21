@@ -181,18 +181,32 @@
   .req-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .req-actions .fr-btn { white-space: nowrap; }
 
-  /* Met en évidence, parmi les trois boutons de décision, celui qui
-     correspond à l'état actuel de la demande (fond plein coloré, au
-     lieu du simple style tertiaire) — plutôt qu'une colonne Décision
-     séparée, l'état se lit directement sur le bouton actif. */
+  /* Met en évidence le bouton "Remettre en attente" quand la demande est
+     actuellement à cet état (fond plein coloré, au lieu du simple style
+     tertiaire) — plutôt qu'une colonne Décision séparée, l'état se lit
+     directement sur le bouton actif. Les autres états (Validée/Refusée,
+     Perçu/Réintégré) sont désormais portés par les interrupteurs
+     .req-switch ci-dessous plutôt que par des boutons séparés. */
   .req-actions .fr-btn[aria-pressed="true"] {
     color: #fff;
   }
-  .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: var(--statut-validee); }
-  .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: var(--statut-refusee); }
   .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: var(--statut-attente); color: #3a3a3a; }
-  .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: var(--statut-percu); }
-  .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: var(--statut-reintegre); }
+
+  /* Interrupteurs Validée/Refusée et Perçu/Réintégré (voir renderDemandePage) :
+     une seule icône affichée à la fois (celle de la prochaine action),
+     teintée de la couleur --statut-* de l'état RÉEL actuel (data-status,
+     distinct de data-action qui porte la prochaine action) — même langage
+     visuel que l'ancien bouton actif à fond plein, condensé en un seul
+     contrôle en forme de pilule (interrupteur). */
+  .req-switch {
+    border-radius: 999px;
+  }
+  .req-switch[data-status="validee"] { background-color: var(--statut-validee); color: #fff; }
+  .req-switch[data-status="refusee"] { background-color: var(--statut-refusee); color: #fff; }
+  .req-switch[data-status="attente"] { background-color: var(--statut-attente); color: #3a3a3a; }
+  .req-switch[data-status="percu"] { background-color: var(--statut-percu); color: #fff; }
+  .req-switch[data-status="reintegre"] { background-color: var(--statut-reintegre); color: #fff; }
+  .req-switch:disabled { opacity: 0.5; }
 
   .fr-table caption { text-align: left; font-weight: 700; }
 
@@ -2194,18 +2208,41 @@
       var canReintegrer = isPercu;
       var reintegreTitle = canReintegrer ? 'Réintégré' : 'Pour être réintégrée, cette ressource doit d’abord être perçue';
 
+      // Interrupteur Perçu/Réintégré (remplace les 2 boutons séparés) :
+      // une seule icône affichée à la fois, celle de la PROCHAINE action
+      // possible (Perçu tant que la ressource n'a pas encore été perçue,
+      // Réintégré une fois qu'elle l'a été) — jamais les deux ensemble.
+      // Désactivé si aucune des deux n'est possible dans l'état actuel
+      // (pas encore validée, ou déjà réintégrée — état final).
+      var percuReintegreAction = (!isPercu && canPercevoir) ? 'percu' : (canReintegrer ? 'reintegre' : null);
+      var percuReintegreChecked = isReintegre; // teinte de l'interrupteur : "activé" une fois la ressource réintégrée
+      var percuReintegreIcon = (percuReintegreAction === 'reintegre' || isReintegre) ? 'fr-icon-inbox-archive-line' : 'fr-icon-inbox-unarchive-line';
+      var percuReintegreTitle = percuReintegreAction === 'percu' ? percuTitle
+        : percuReintegreAction === 'reintegre' ? reintegreTitle
+        : isReintegre ? 'Déjà réintégrée'
+        : percuTitle; // ressource pas encore validée : message de blocage de "Perçu"
+
       // Une fois la ressource "Perçu", la décision (Validée / Refusée / En
       // attente) est verrouillée : on ne modifie plus l'affectation tant
-      // que la ressource n'a pas été réintégrée. Les 3 boutons de décision
-      // sont donc désactivés dans ce cas, avec une infobulle dédiée plutôt
-      // que le nom de l'action.
+      // que la ressource n'a pas été réintégrée. L'interrupteur Validée/
+      // Refusée et le bouton "Remettre en attente" sont donc désactivés
+      // dans ce cas, avec une infobulle dédiée plutôt que le nom de
+      // l'action.
       var decisionLockedByPercu = isPercu;
-      var valideeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Valider';
-      var refuseeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Refuser';
       var attenteTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Remettre en attente';
-      var canValider = !isValidee && !decisionLockedByPercu;
-      var canRefuser = !isRefusee && !decisionLockedByPercu;
       var canAttente = !isAttente && !decisionLockedByPercu;
+
+      // Interrupteur Validée/Refusée (remplace les 2 boutons séparés) :
+      // une seule icône affichée à la fois, celle de la PROCHAINE action
+      // (Valider tant que non validée — y compris depuis "En attente" ou
+      // "Refusée" —, Refuser une fois validée). Revenir à "Refusée" une
+      // fois qu'on est passé par "Validée" prend donc 2 clics (Valider
+      // d'abord si besoin, puis Refuser) plutôt qu'un accès direct : c'est
+      // la contrepartie du format interrupteur (un seul état exposé à la
+      // fois) par rapport à 2 boutons indépendants.
+      var decisionSwitchAction = isValidee ? 'refusee' : 'validee';
+      var decisionSwitchIcon = decisionSwitchAction === 'validee' ? 'fr-icon-check-line' : 'fr-icon-close-line';
+      var decisionSwitchTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : (decisionSwitchAction === 'validee' ? 'Valider' : 'Refuser');
 
       // Posé sur la <tr> comme attribut data-status : sert uniquement au
       // liseré de couleur des cartes en vue mobile (voir la règle CSS
@@ -2227,12 +2264,17 @@
       var conflitBadgeHtml = conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '';
       var conflitInAccordeCol = isMateriels && hasMaterielAccorde;
 
+      // data-status (distinct de data-action, qui porte la PROCHAINE
+      // action) reflète l'état actuel réel : sert uniquement à teinter
+      // l'interrupteur avec la même couleur --statut-* que l'ancien
+      // bouton actif correspondant (voir CSS .req-switch[data-status]).
+      var decisionSwitchStatus = isValidee ? 'validee' : isRefusee ? 'refusee' : 'attente';
+      var percuSwitchStatus = isPercu ? 'percu' : isReintegre ? 'reintegre' : '';
+
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
+        '<button type="button" role="switch" class="req-switch req-switch--decision fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + decisionSwitchIcon + '" title="' + escapeHtml(decisionSwitchTitle) + '" data-action="' + decisionSwitchAction + '" data-status="' + decisionSwitchStatus + '" aria-checked="' + (isValidee ? 'true' : 'false') + '" ' + (decisionLockedByPercu ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-unarchive-line" title="' + escapeHtml(percuTitle) + '" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (!canPercevoir ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="' + escapeHtml(reintegreTitle) + '" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (!canReintegrer ? 'disabled' : '') + '></button>' +
+        '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 
@@ -2679,11 +2721,12 @@
   // lieu d'un champ texte, pour écrire un id de ligne valide.
 
   // "materielAccorde" (rôle propre aux matériels, voir MATERIEL_ROLES) est
-  // placé en dernier, comme la colonne correspondante dans le tableau, et
-  // c'est le seul champ facultatif du formulaire (voir isRequired dans
-  // buildNewRequestForm) : contrairement aux autres, la demande peut être
-  // enregistrée sans qu'il soit renseigné (rien n'est encore accordé au
-  // moment de la demande, ou pas encore décidé).
+  // placé en dernier, comme la colonne correspondante dans le tableau.
+  // Avec "demandeur", ce sont les deux seuls champs facultatifs du
+  // formulaire (voir isRequired dans buildNewRequestForm) : la demande
+  // peut être enregistrée sans matériel accordé (rien n'est encore
+  // accordé au moment de la demande, ou pas encore décidé) et sans
+  // demandeur (identité inconnue/anonyme, affichée comme "AE").
   var NEW_REQUEST_ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'materielAccorde'];
   var NEW_REQUEST_LABELS = {
     demandeur: 'Demandeur',
@@ -2845,13 +2888,15 @@
         var label = role === 'objet' ? objetLabel : NEW_REQUEST_LABELS[role];
         var inputId = 'newreq_' + role;
         var colMeta = meta ? meta.columnsByTableAndColId[cfg.table + '.' + colId] : null;
-        // Seul "Matériel accordé" est facultatif : rien n'est encore
-        // accordé au moment de la demande, ou la décision n'est pas
-        // encore prise — la demande doit pouvoir être enregistrée sans.
+        // "Matériel accordé" et "Demandeur" sont facultatifs : rien n'est
+        // encore accordé au moment de la demande (ou la décision n'est pas
+        // encore prise), et le demandeur peut rester inconnu/anonyme (la
+        // ligne s'affichera alors comme "AE", voir demandeurCell plus bas).
         // Tous les autres champs du formulaire restent obligatoires.
-        var isRequired = role !== 'materielAccorde';
+        var isRequired = role !== 'materielAccorde' && role !== 'demandeur';
         var requiredAttr = isRequired ? ' required' : '';
-        var hintHtml = role === 'materielAccorde' ? '<p class="fr-hint-text">Facultatif : peut être renseigné plus tard.</p>' : '';
+        var hintHtml = role === 'materielAccorde' ? '<p class="fr-hint-text">Facultatif : peut être renseigné plus tard.</p>'
+          : role === 'demandeur' ? '<p class="fr-hint-text">Facultatif : affiché comme « AE » si non renseigné.</p>' : '';
 
         if (colMeta && typeof colMeta.type === 'string' && colMeta.type.indexOf('Ref:') === 0) {
           var targetTableId = colMeta.type.slice(4);

@@ -337,6 +337,9 @@
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
         Réinitialiser le filtre
       </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
+        Actualiser
+      </button>
       <p class="req-count req-count--push" id="vehCount"></p>
     </div>
 
@@ -365,6 +368,9 @@
       </div>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="matRefreshBtn" type="button">
         Réinitialiser le filtre
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
+        Actualiser
       </button>
       <p class="req-count req-count--push" id="matCount"></p>
     </div>
@@ -418,6 +424,9 @@
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
           Réinitialiser le filtre
         </button>
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
+          Actualiser
+        </button>
         <p class="req-count req-count--push" id="gvCount"></p>
       </div>
       <div id="gvZone"></div>
@@ -441,6 +450,9 @@
         </div>
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
           Réinitialiser le filtre
+        </button>
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
+          Actualiser
         </button>
         <p class="req-count req-count--push" id="gmCount"></p>
       </div>
@@ -488,11 +500,11 @@
             <select class="fr-select" id="veh_col_decision" data-page="vehicules" data-role="decision"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_conflit">Conflit (optionnel)</label>
+            <label class="fr-label" for="veh_col_conflit">Conflit (optionnel, case à cocher)</label>
             <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -554,11 +566,11 @@
             <select class="fr-select" id="mat_col_decision" data-page="materiels" data-role="decision"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_conflit">Conflit (optionnel)</label>
+            <label class="fr-label" for="mat_col_conflit">Conflit (optionnel, case à cocher)</label>
             <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Si la colonne Conflit est renseignée pour une demande (texte non vide décrivant le conflit), un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule/Matériel demandé.</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
           <div class="fr-input-group">
@@ -796,7 +808,7 @@
   };
   // Valeur pseudo-décision proposée dans le filtre "Etat" des pages de
   // demandes, en plus des vraies valeurs de la colonne Décision : coche
-  // toute demande dont la colonne Conflit (si réglée) est renseignée,
+  // toute demande dont la case à cocher Conflit (si réglée) est cochée,
   // quelle que soit sa décision — combinée en OU avec les autres cases
   // cochées du même filtre, comme les autres valeurs.
   var CONFLIT_FILTER_VALUE = 'Conflit';
@@ -1023,22 +1035,32 @@
 
   // Le filtre "Etat" propose l'option pseudo-décision "Conflit" (voir
   // CONFLIT_FILTER_VALUE) uniquement si une colonne Conflit est réglée
-  // pour cette page ET qu'au moins une demande chargée y a un texte non
-  // vide — comme les autres valeurs du filtre, elle ne propose que ce qui
-  // est réellement rencontré dans les données.
+  // pour cette page ET qu'au moins une demande chargée a la case cochée —
+  // comme les autres valeurs du filtre, elle ne propose que ce qui est
+  // réellement rencontré dans les données.
   function isConflitFilterAvailable(pageKey) {
     var cfg = settings[pageKey];
     if (!cfg || !cfg.col || !cfg.col.conflit) return false;
     var rows = (pageData[pageKey] && pageData[pageKey].rows) || [];
-    return rows.some(function (r) { return !!textOf(r.conflit); });
+    return rows.some(function (r) { return isConflitChecked(r.conflit); });
   }
 
   // Bouton "Réinitialiser le filtre" (ex-"Actualiser") de la barre
   // d'outils de chaque page : l'id DOM (…RefreshBtn) est conservé tel
-  // quel, seuls son libellé/icône et son action ont changé.
+  // quel, seuls son libellé/icône et son action ont changé — il vide les
+  // filtres actifs de la page plutôt que de recharger la table.
   ALL_PAGES.forEach(function (pageKey) {
     var btn = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'RefreshBtn');
     if (btn) btn.addEventListener('click', function () { resetAllFilters(pageKey); });
+  });
+
+  // Bouton "Actualiser" (…ReloadBtn) : recharge les données de cette page
+  // depuis la table Grist configurée — l'action qu'assurait auparavant le
+  // bouton ci-dessus, remis à part puisque ce widget ne s'abonne pas aux
+  // mises à jour en direct (voir la remarque en tête de fichier).
+  ALL_PAGES.forEach(function (pageKey) {
+    var btn = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'ReloadBtn');
+    if (btn) btn.addEventListener('click', function () { loadPageData(pageKey); });
   });
 
   // ---- Zone "Configuration" (geste caché) --------------------------------
@@ -1441,6 +1463,16 @@
     return div.innerHTML;
   }
 
+  // La colonne "Conflit" est une case à cocher (colonne Oui/Non Grist) :
+  // fetchTable() renvoie alors un booléen JS (true/false), pas du texte —
+  // contrairement à textOf(), qui transformerait un "false" en la chaîne
+  // non vide "false" et ferait apparaître le badge/l'option de filtre sur
+  // TOUTES les lignes non cochées. On teste donc explicitement le booléen
+  // (1 accepté aussi, par tolérance si la valeur brute remontait en 0/1).
+  function isConflitChecked(v) {
+    return v === true || v === 1;
+  }
+
   // Les colonnes Date/DateTime de Grist sont renvoyées comme un
   // horodatage Unix (en secondes) ; on gère aussi le texte
   // "JJ/MM/AAAA" au cas où (repris de la logique de FSJ).
@@ -1544,7 +1576,7 @@
     var rows = all.filter(function (r) {
       if (filters.decision.length) {
         var matchesDecision = filters.decision.indexOf(textOf(r.decision)) !== -1;
-        var matchesConflit = hasConflitColForFilter && filters.decision.indexOf(CONFLIT_FILTER_VALUE) !== -1 && !!textOf(r.conflit);
+        var matchesConflit = hasConflitColForFilter && filters.decision.indexOf(CONFLIT_FILTER_VALUE) !== -1 && isConflitChecked(r.conflit);
         if (!matchesDecision && !matchesConflit) return false;
       }
       if (filters.demandeur.length && filters.demandeur.indexOf(textOf(r.demandeur)) === -1) return false;
@@ -1593,11 +1625,11 @@
       var isPercu = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.percu);
       var isReintegre = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.reintegre);
 
-      // Conflit détecté (colonne "Conflit" configurée et renseignée pour
+      // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
       // cette demande) : signalé par un badge DSFR "Conflit" dans la
       // colonne Véhicule/Matériel demandé, purement informatif — l'action
       // Valider reste toujours disponible (elle n'est plus bloquée).
-      var conflitText = hasConflitCol ? textOf(r.conflit) : '';
+      var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
 
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="Valider" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (isValidee ? 'disabled' : '') + '></button>' +
@@ -1608,7 +1640,7 @@
         '</div>';
 
       var objetCell = escapeHtml(objet) +
-        (conflitText ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
+        (conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
 
       return '<tr data-row-id="' + r.id + '">' +
         '<td>' + actions + '</td>' +

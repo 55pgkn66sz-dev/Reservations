@@ -1908,10 +1908,18 @@
     // d'affichage — la colonne Décision (boutons de décision) est
     // placée en premier, pour rester visible même sur un panneau de
     // widget étroit, plutôt que de risquer d'être coupée tout à droite.
-    var colWidths = hasMaterielAccorde ? [16, 12, 15, 14, 14, 29] : [18, 14, 19, 17, 32];
+    // Sur la page matériels, "Période souhaitée" est placée avant
+    // "Matériel demandé" (ordre inversé par rapport à la page véhicules),
+    // et "Matériel accordé" est la toute dernière colonne du tableau.
+    var isMateriels = pageKey === 'materiels';
+    var colWidths = isMateriels
+      ? (hasMaterielAccorde ? [16, 12, 14, 15, 24, 19] : [18, 14, 17, 19, 32])
+      : [18, 14, 19, 17, 32];
 
-    var headCells = hasMaterielAccorde
-      ? ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Matériel accordé', 'Période souhaitée', 'Motif']
+    var headCells = isMateriels
+      ? (hasMaterielAccorde
+          ? ['Gérer la demande', 'Demandeur', 'Période souhaitée', escapeHtml(objetLabel), 'Motif', 'Matériel accordé']
+          : ['Gérer la demande', 'Demandeur', 'Période souhaitée', escapeHtml(objetLabel), 'Motif'])
       : ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
@@ -1987,14 +1995,20 @@
         ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + '</td>'
         : '';
 
-      return '<tr data-row-id="' + r.id + '" data-status="' + statusKey + '">' +
-        '<td data-label="Gérer la demande">' + actions + '</td>' +
-        '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>' +
-        '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>' +
-        materielAccordeCell +
-        '<td data-label="Période souhaitée">' + escapeHtml(periode) + '</td>' +
-        '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>' +
-        '</tr>';
+      var gererCell = '<td data-label="Gérer la demande">' + actions + '</td>';
+      var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>';
+      var objetCellFull = '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>';
+      var periodeCell = '<td data-label="Période souhaitée">' + escapeHtml(periode) + '</td>';
+      var motifCell = '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>';
+
+      // Sur la page matériels : Période souhaitée avant Matériel demandé
+      // (ordre inversé par rapport à véhicules), Matériel accordé en
+      // dernière colonne. Sur véhicules, ordre inchangé.
+      var rowCells = isMateriels
+        ? gererCell + demandeurCell + periodeCell + objetCellFull + motifCell + materielAccordeCell
+        : gererCell + demandeurCell + objetCellFull + periodeCell + motifCell;
+
+      return '<tr data-row-id="' + r.id + '" data-status="' + statusKey + '">' + rowCells + '</tr>';
     }).join('');
 
     zone.innerHTML =

@@ -187,7 +187,7 @@
      composant DSFR (pensée pour un en-tête pleine largeur). */
   .req-toolbar .fr-search-bar { flex: 1 1 16rem; max-width: 22rem; margin: 0; }
 
-  .req-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+  .req-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
   .req-actions .fr-btn { white-space: nowrap; }
 
   /* Met en évidence le bouton actif (fond plein coloré, au lieu du simple
@@ -314,9 +314,15 @@
      mais le fond de la carte reprend un ton pastel selon l'état de la
      demande plutôt qu'une couleur pleine, pour rester lisible sans
      dominer visuellement l'écran. ---- */
+  /* display: none ici, et display: grid uniquement porté par
+     .req-cards-view (voir la règle @media plus bas) : .req-cards ne fixe
+     volontairement PAS sa propre valeur de display, pour éviter que cette
+     règle (même spécificité que .req-cards-view, sur le même élément) ne
+     gagne le conflit en écran large simplement parce qu'elle est déclarée
+     après — ce qui a provoqué un bug où le tableau ET les cartes
+     s'affichaient tous les deux à la fois sur ordinateur. */
   .req-cards-view { display: none; }
   .req-cards {
-    display: grid;
     grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
     gap: 1rem;
   }
@@ -2383,6 +2389,11 @@
       var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
       var conflitBadgeHtml = conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '';
       var conflitInAccordeCol = isMateriels && hasMaterielAccorde;
+      // Carte mobile uniquement : le badge est affiché à côté des icônes
+      // d'action plutôt qu'accolé à un champ (voir actionsCard plus bas) —
+      // sans le <br> de conflitBadgeHtml, qui n'a de sens qu'en dessous
+      // d'un texte de champ.
+      var conflitBadgeInline = conflitDetected ? '<span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '';
 
       // data-status (distinct de data-action, qui porte la PROCHAINE
       // action) reflète l'état actuel réel : sert uniquement à teinter
@@ -2400,7 +2411,12 @@
         '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>';
       var actionsTable = '<div class="req-actions" role="group" aria-label="Actions">' + actionButtonsHtml + '</div>';
-      var actionsCard = '<div class="req-card__actions req-actions" role="group" aria-label="Actions">' + actionButtonsHtml + '</div>';
+      // Sur la carte mobile, le badge "Conflit" (s'il y a lieu) rejoint les
+      // icônes d'action plutôt que le champ Véhicule/Matériel sollicité ou
+      // Matériel accordé (voir conflitBadgeInline plus haut) — un seul
+      // affichage possible, indépendant du réglage conflitInAccordeCol qui
+      // ne concerne que le tableau.
+      var actionsCard = '<div class="req-card__actions req-actions" role="group" aria-label="Actions">' + actionButtonsHtml + conflitBadgeInline + '</div>';
 
       var demandeurValue = hasDemandeurCol ? (textOfRef(r.demandeur) || 'AE') : textOfRef(r.demandeur);
 
@@ -2426,11 +2442,11 @@
       // .req-card dans le CSS), avec un fond pastel selon le statut plutôt
       // que la couleur pleine utilisée dans une version antérieure. --
       var demandeurLine = '<p class="req-card__line"><span class="req-card__label">Demandeur :</span> <strong>' + escapeHtml(demandeurValue) + '</strong></p>';
-      var objetLine = '<p class="req-card__line"><span class="req-card__label">' + escapeHtml(objetSoliciteLabel) + ' :</span> ' + escapeHtml(objet) + (conflitInAccordeCol ? '' : conflitBadgeHtml) + '</p>';
+      var objetLine = '<p class="req-card__line"><span class="req-card__label">' + escapeHtml(objetSoliciteLabel) + ' :</span> ' + escapeHtml(objet) + '</p>';
       var periodeLine = '<p class="req-card__line"><span class="req-card__label">Période :</span> ' + escapeHtml(fmtDate(r.dateDebut)) + ' → ' + escapeHtml(fmtDate(r.dateFin)) + '</p>';
       var motifLine = '<p class="req-card__line"><span class="req-card__label">Motif :</span> ' + escapeHtml(textOf(r.motif)) + '</p>';
       var materielAccordeLine = hasMaterielAccorde
-        ? '<p class="req-card__line"><span class="req-card__label">Matériel accordé :</span> ' + escapeHtml(textOfRef(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</p>'
+        ? '<p class="req-card__line"><span class="req-card__label">Matériel accordé :</span> ' + escapeHtml(textOfRef(r.materielAccorde)) + '</p>'
         : '';
       var cardLines = demandeurLine + objetLine + periodeLine + motifLine + materielAccordeLine;
       var cardHtml = '<div class="req-card" data-row-id="' + r.id + '" data-status="' + statusKey + '">' + cardLines + actionsCard + '</div>';

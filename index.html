@@ -156,7 +156,7 @@
   }
   .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: #18753c; }
   .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: #ce0500; }
-  .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: #b34000; }
+  .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: #ffd200; color: #3a3a3a; }
   .req-actions .fr-btn[data-action="percu"][aria-pressed="true"] { background-color: #000091; }
   .req-actions .fr-btn[data-action="reintegre"][aria-pressed="true"] { background-color: #009099; }
 
@@ -206,6 +206,67 @@
   }
   .settings-grid .fr-select-group,
   .settings-grid .fr-input-group { margin-bottom: 0; }
+
+  /* Zone "Configuration" (geste caché) : en-tête avec bouton Fermer,
+     visible quel que soit l'onglet du contrôle segmenté en cours. */
+  .config-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .config-header h2 { margin: 0; }
+
+  /* Bouton de bascule Disponible / Indisponible (pages "Gérer les
+     véhicules" / "Gérer le matériel") : englobe un badge DSFR coloré,
+     sans style de bouton propre — seul le badge porte la couleur. */
+  .gestion-etat-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  /* Fenêtre modale "Nouvelle demande" : recouvrement + boîte de dialogue
+     centrée, gérés à la main (pas de dépendance à dsfr.js pour l'ouverture
+     / fermeture, comme le reste du widget) plutôt qu'avec le composant
+     fr-modal (qui suppose le comportement JS du DSFR). */
+  .newreq-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem;
+    overflow-y: auto;
+  }
+  .newreq-overlay[hidden] { display: none; }
+  .newreq-dialog {
+    background: #fff;
+    max-width: 40rem;
+    width: 100%;
+    padding: 1.5rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  }
+  .newreq-dialog__header {
+    display: flex;
+    justify-content: flex-end;
+    margin: -0.5rem -0.5rem 0 0;
+  }
+  .newreq-dialog h1 {
+    margin-top: 0;
+    font-size: 1.25rem;
+  }
+  .newreq-dialog .fr-select-group,
+  .newreq-dialog .fr-input-group { margin-bottom: 1rem; }
+  .newreq-dialog__footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    margin-top: 1.5rem;
+  }
 
   /* Pied de page du widget : crédit, comme dans FSJ. */
   .widget-footer {
@@ -271,6 +332,9 @@
     <h2 class="fr-h6">Demandes de réservation de véhicules</h2>
 
     <div class="req-toolbar fr-mb-2w">
+      <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="vehNewRequestBtn" type="button">
+        Nouvelle demande
+      </button>
       <div class="dropdown-menu" id="vehFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="vehFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="vehFilterList">
           Etat
@@ -297,6 +361,9 @@
     <h2 class="fr-h6">Demandes de réservation de matériels</h2>
 
     <div class="req-toolbar fr-mb-2w">
+      <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="matNewRequestBtn" type="button">
+        Nouvelle demande
+      </button>
       <div class="dropdown-menu" id="matFilterMenu">
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="matFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="matFilterList">
           Etat
@@ -318,18 +385,92 @@
     <div id="matZone"></div>
   </div>
 
-  <!-- Panneau "Paramètres" : mapping des tables/colonnes Grist. Accessible
-       depuis le bouton en haut à droite, indépendamment du menu principal
-       (qui ne doit contenir que les deux pages demandées). -->
+  <!-- Zone "Configuration" : regroupe, derrière le geste caché sur le bloc
+       marque (5 clics rapides), la gestion du parc (véhicules / matériel)
+       et les réglages du widget, choisis via un contrôle segmenté — le
+       menu principal ci-dessus ne garde que les deux pages de demandes. -->
   <div id="panelSettings" hidden>
-    <h2 class="fr-h6">Paramètres du widget</h2>
+    <div class="config-header">
+      <h2 class="fr-h6">Configuration</h2>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeConfigBtn" type="button">Fermer</button>
+    </div>
+
+    <div class="fr-segmented fr-segmented--sm fr-mb-3w">
+      <div class="fr-segmented__elements">
+        <div class="fr-segmented__element">
+          <input type="radio" id="configTabGestionVehicules" name="configTab" value="gestionVehicules" checked>
+          <label class="fr-label" for="configTabGestionVehicules">Gérer les véhicules</label>
+        </div>
+        <div class="fr-segmented__element">
+          <input type="radio" id="configTabGestionMateriels" name="configTab" value="gestionMateriels">
+          <label class="fr-label" for="configTabGestionMateriels">Gérer le matériel</label>
+        </div>
+        <div class="fr-segmented__element">
+          <input type="radio" id="configTabReglages" name="configTab" value="reglages">
+          <label class="fr-label" for="configTabReglages">Réglages du widget</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sous-onglet "Gérer les véhicules" : recensement du parc (disponible
+         / indisponible), indépendant des demandes de réservation. -->
+    <div id="configPanelGestionVehicules">
+      <div class="req-toolbar fr-mb-2w">
+        <div class="dropdown-menu" id="gvFilterMenu">
+          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvFilterList">
+            Disponibilité
+          </button>
+          <ul class="dropdown-menu__list" id="gvFilterList" role="menu" aria-label="Filtrer les véhicules par disponibilité" hidden></ul>
+        </div>
+        <div class="dropdown-menu" id="gvTypeFilterMenu">
+          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvTypeFilterList">
+            Type de véhicule
+          </button>
+          <ul class="dropdown-menu__list" id="gvTypeFilterList" role="menu" aria-label="Filtrer les véhicules par type" hidden></ul>
+        </div>
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
+          Actualiser
+        </button>
+        <p class="req-count req-count--push" id="gvCount"></p>
+      </div>
+      <div id="gvZone"></div>
+    </div>
+
+    <!-- Sous-onglet "Gérer le matériel" : même principe, catégorie au lieu
+         de type. -->
+    <div id="configPanelGestionMateriels" hidden>
+      <div class="req-toolbar fr-mb-2w">
+        <div class="dropdown-menu" id="gmFilterMenu">
+          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmFilterList">
+            Disponibilité
+          </button>
+          <ul class="dropdown-menu__list" id="gmFilterList" role="menu" aria-label="Filtrer le matériel par disponibilité" hidden></ul>
+        </div>
+        <div class="dropdown-menu" id="gmTypeFilterMenu">
+          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmTypeFilterList">
+            Catégorie
+          </button>
+          <ul class="dropdown-menu__list" id="gmTypeFilterList" role="menu" aria-label="Filtrer le matériel par catégorie" hidden></ul>
+        </div>
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
+          Actualiser
+        </button>
+        <p class="req-count req-count--push" id="gmCount"></p>
+      </div>
+      <div id="gmZone"></div>
+    </div>
+
+    <!-- Sous-onglet "Réglages du widget" : mapping des 4 tables Grist (2
+         pages de demandes + 2 pages de gestion du parc) et de leurs
+         colonnes — inchangé pour les deux premières sections. -->
+    <div id="configPanelReglages" hidden>
     <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
-      <p>Associez, pour chaque type de demande, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget.</p>
+      <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget.</p>
     </div>
 
     <form id="settingsForm">
       <div class="settings-section">
-        <p class="section-title">Véhicules</p>
+        <p class="section-title">Véhicules — demandes de réservation</p>
         <div class="settings-grid">
           <div class="fr-select-group">
             <label class="fr-label" for="veh_table">Table Grist</label>
@@ -399,7 +540,7 @@
       </div>
 
       <div class="settings-section">
-        <p class="section-title">Matériels</p>
+        <p class="section-title">Matériels — demandes de réservation</p>
         <div class="settings-grid">
           <div class="fr-select-group">
             <label class="fr-label" for="mat_table">Table Grist</label>
@@ -472,6 +613,80 @@
         </div>
       </div>
 
+      <div class="settings-section">
+        <p class="section-title">Gérer les véhicules — recensement du parc</p>
+        <div class="settings-grid">
+          <div class="fr-select-group">
+            <label class="fr-label" for="gv_table">Table Grist</label>
+            <select class="fr-select" id="gv_table"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gv_col_identifiant">Identifiant (nom / immatriculation)</label>
+            <select class="fr-select" id="gv_col_identifiant" data-page="gestionVehicules" data-role="identifiant"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gv_col_type">Type de véhicule</label>
+            <select class="fr-select" id="gv_col_type" data-page="gestionVehicules" data-role="type"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gv_col_etat">Disponibilité</label>
+            <select class="fr-select" id="gv_col_etat" data-page="gestionVehicules" data-role="etat"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gv_col_commentaire">Commentaire (optionnel)</label>
+            <select class="fr-select" id="gv_col_commentaire" data-page="gestionVehicules" data-role="commentaire"></select>
+          </div>
+        </div>
+        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
+        <div class="settings-grid">
+          <div class="fr-input-group">
+            <label class="fr-label" for="gv_val_disponible">Disponible</label>
+            <input class="fr-input" type="text" id="gv_val_disponible" value="Disponible">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="gv_val_indisponible">Indisponible</label>
+            <input class="fr-input" type="text" id="gv_val_indisponible" value="Indisponible">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <p class="section-title">Gérer le matériel — recensement du parc</p>
+        <div class="settings-grid">
+          <div class="fr-select-group">
+            <label class="fr-label" for="gm_table">Table Grist</label>
+            <select class="fr-select" id="gm_table"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gm_col_identifiant">Identifiant (désignation)</label>
+            <select class="fr-select" id="gm_col_identifiant" data-page="gestionMateriels" data-role="identifiant"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gm_col_type">Catégorie</label>
+            <select class="fr-select" id="gm_col_type" data-page="gestionMateriels" data-role="type"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gm_col_etat">Disponibilité</label>
+            <select class="fr-select" id="gm_col_etat" data-page="gestionMateriels" data-role="etat"></select>
+          </div>
+          <div class="fr-select-group">
+            <label class="fr-label" for="gm_col_commentaire">Commentaire (optionnel)</label>
+            <select class="fr-select" id="gm_col_commentaire" data-page="gestionMateriels" data-role="commentaire"></select>
+          </div>
+        </div>
+        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
+        <div class="settings-grid">
+          <div class="fr-input-group">
+            <label class="fr-label" for="gm_val_disponible">Disponible</label>
+            <input class="fr-input" type="text" id="gm_val_disponible" value="Disponible">
+          </div>
+          <div class="fr-input-group">
+            <label class="fr-label" for="gm_val_indisponible">Indisponible</label>
+            <input class="fr-input" type="text" id="gm_val_indisponible" value="Indisponible">
+          </div>
+        </div>
+      </div>
+
       <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
         <li><button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer les paramètres</button></li>
         <li><button class="fr-btn fr-btn--secondary" id="cancelSettingsBtn" type="button">Fermer sans enregistrer</button></li>
@@ -479,8 +694,30 @@
     </form>
 
     <div id="settingsStatusZone" class="fr-mt-3w" aria-live="polite"></div>
+    </div>
   </div>
 
+</div>
+
+<!-- Fenêtre "Nouvelle demande" : formulaire de création d'une demande,
+     partagé entre les deux pages (véhicules / matériels), rempli
+     dynamiquement selon les colonnes réglées pour la page depuis
+     laquelle il est ouvert (voir buildNewRequestForm côté script). -->
+<div class="newreq-overlay" id="newRequestOverlay" hidden>
+  <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="newRequestTitle">
+    <div class="newreq-dialog__header">
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="newRequestCloseBtn" type="button">Fermer</button>
+    </div>
+    <h1 id="newRequestTitle">Nouvelle demande</h1>
+    <form id="newRequestForm">
+      <div id="newRequestBody"></div>
+      <p class="fr-hint-text" id="newRequestStatus" aria-live="polite"></p>
+      <div class="newreq-dialog__footer">
+        <button class="fr-btn fr-btn--secondary" type="button" id="newRequestCancelBtn">Annuler</button>
+        <button class="fr-btn" type="submit">Créer la demande</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <footer class="widget-footer" role="contentinfo">
@@ -504,47 +741,98 @@
   var panelMateriels = document.getElementById('panelMateriels');
   var panelSettings = document.getElementById('panelSettings');
   var brandGesture = document.getElementById('brandGesture');
+  var closeConfigBtn = document.getElementById('closeConfigBtn');
   var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
   var settingsStatusZone = document.getElementById('settingsStatusZone');
 
-  var currentView = 'vehicules'; // 'vehicules' | 'materiels' (la vue active parmi les deux pages du menu)
+  var currentView = 'vehicules'; // 'vehicules' | 'materiels' (la vue active parmi les deux pages du menu principal)
   var viewBeforeSettings = 'vehicules';
 
-  // Rôles de colonnes communs aux deux pages (+ 'quantite', propre aux matériels).
+  // Rôles de colonnes des deux pages de demandes (+ 'quantite', propre aux matériels).
   var ROLES = ['demandeur', 'dateDemande', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'commentaire', 'conflit'];
+  // Rôles de colonnes des deux pages de gestion du parc (onglets de la zone Configuration).
+  var GESTION_ROLES = ['identifiant', 'type', 'etat', 'commentaire'];
 
-  function defaultPageConfig() {
-    return {
-      table: '',
-      col: { demandeur: '', dateDemande: '', objet: '', quantite: '', dateDebut: '', dateFin: '', motif: '', decision: '', commentaire: '', conflit: '' },
-      valeurs: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' }
-    };
+  // Registre des 4 pages du widget : les 2 pages de demandes (menu
+  // principal) et les 2 pages de gestion du parc (onglets de la zone
+  // Configuration, accessible par le geste caché) — regroupe tout ce qui
+  // les distingue, pour que le reste du script (filtres, chargement,
+  // réglages) reste générique et commun aux deux familles de pages.
+  var ALL_PAGES = ['vehicules', 'materiels', 'gestionVehicules', 'gestionMateriels'];
+  var PAGE_ROLES = { vehicules: ROLES, materiels: ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
+  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
+  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
+  var PAGE_REQUIRED_COLS = {
+    vehicules: ['demandeur', 'dateDemande', 'objet', 'decision'],
+    materiels: ['demandeur', 'dateDemande', 'objet', 'decision'],
+    gestionVehicules: ['identifiant', 'type', 'etat'],
+    gestionMateriels: ['identifiant', 'type', 'etat']
+  };
+  var PAGE_OPTIONAL_COLS = {
+    vehicules: ['quantite', 'commentaire', 'conflit'],
+    materiels: ['quantite', 'commentaire', 'conflit'],
+    gestionVehicules: ['commentaire'],
+    gestionMateriels: ['commentaire']
+  };
+  var PAGE_VALEURS_DEFAULT = {
+    vehicules: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
+    materiels: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
+    gestionVehicules: { disponible: 'Disponible', indisponible: 'Indisponible' },
+    gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' }
+  };
+  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', gestionVehicules: 'gestion', gestionMateriels: 'gestion' };
+
+  function defaultConfigFor(pageKey) {
+    var col = {};
+    PAGE_ROLES[pageKey].forEach(function (role) { col[role] = ''; });
+    var valeurs = {};
+    var defaults = PAGE_VALEURS_DEFAULT[pageKey];
+    Object.keys(defaults).forEach(function (key) { valeurs[key] = defaults[key]; });
+    return { table: '', col: col, valeurs: valeurs };
   }
 
-  var settings = { vehicules: defaultPageConfig(), materiels: defaultPageConfig() };
+  var settings = {};
+  ALL_PAGES.forEach(function (pageKey) { settings[pageKey] = defaultConfigFor(pageKey); });
   var settingsLoaded = false;
 
   // Données chargées depuis Grist pour chaque page, et filtres actifs :
-  // pour chaque page, un ensemble de valeurs retenues par filtre (clé
-  // 'decision' ou 'demandeur') — tableau vide = aucun filtre, toutes les
-  // demandes affichées ; plusieurs valeurs cochées pour un même filtre se
-  // combinent en OU, les deux filtres (Décision, Demandeur) se combinent
-  // entre eux en ET.
-  var pageData = {
-    vehicules: { rows: [], loaded: false },
-    materiels: { rows: [], loaded: false }
-  };
-  var activeFilters = {
-    vehicules: { decision: [], demandeur: [] },
-    materiels: { decision: [], demandeur: [] }
-  };
-  var filterFieldLabels = { decision: 'Etat', demandeur: 'Demandeur' };
+  // pour chaque page, un ensemble de valeurs retenues par filtre — tableau
+  // vide = aucun filtre, toutes les lignes affichées ; plusieurs valeurs
+  // cochées pour un même filtre se combinent en OU, les deux filtres
+  // d'une même page se combinent entre eux en ET.
+  var pageData = {};
+  ALL_PAGES.forEach(function (pageKey) { pageData[pageKey] = { rows: [], loaded: false }; });
 
-  var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture des paramètres
+  // Clés de filtre par page, identifiants DOM des boutons/listes, et
+  // libellés affichés (distincts pour "Type de véhicule" / "Catégorie"
+  // bien que la clé de rôle 'type' soit la même pour les deux pages de
+  // gestion du parc).
+  var FILTER_KEYS = {
+    vehicules: ['decision', 'demandeur'],
+    materiels: ['decision', 'demandeur'],
+    gestionVehicules: ['etat', 'type'],
+    gestionMateriels: ['etat', 'type']
+  };
+  var filterFieldLabels = {
+    vehicules: { decision: 'Etat', demandeur: 'Demandeur' },
+    materiels: { decision: 'Etat', demandeur: 'Demandeur' },
+    gestionVehicules: { etat: 'Disponibilité', type: 'Type de véhicule' },
+    gestionMateriels: { etat: 'Disponibilité', type: 'Catégorie' }
+  };
+  var FILTER_DOM_IDS = {
+    vehicules: { decision: { btn: 'vehFilterBtn', list: 'vehFilterList' }, demandeur: { btn: 'vehDemandeurFilterBtn', list: 'vehDemandeurFilterList' } },
+    materiels: { decision: { btn: 'matFilterBtn', list: 'matFilterList' }, demandeur: { btn: 'matDemandeurFilterBtn', list: 'matDemandeurFilterList' } },
+    gestionVehicules: { etat: { btn: 'gvFilterBtn', list: 'gvFilterList' }, type: { btn: 'gvTypeFilterBtn', list: 'gvTypeFilterList' } },
+    gestionMateriels: { etat: { btn: 'gmFilterBtn', list: 'gmFilterList' }, type: { btn: 'gmTypeFilterBtn', list: 'gmTypeFilterList' } }
+  };
+
+  var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture de la configuration
 
   // ---- Menu de navigation principale (header) : Véhicules / Matériels ---
-  // Repris du même principe que FSJ (setView / aria-current).
+  // Repris du même principe que FSJ (setView / aria-current). Ne concerne
+  // que les deux pages de demandes : les pages de gestion du parc vivent
+  // dans la zone Configuration (geste caché), pas dans ce menu.
 
   function setView(view) {
     currentView = view;
@@ -563,7 +851,7 @@
   navVehicules.addEventListener('click', function () { setView('vehicules'); });
   navMateriels.addEventListener('click', function () { setView('materiels'); });
 
-  // ---- Menus déroulants génériques (filtre Décision) --------------------
+  // ---- Menus déroulants génériques (filtres) -----------------------------
   // Comportement générique repris de FSJ : ouverture au clic, fermeture au
   // clic extérieur, à l'Échap, ou après sélection d'un élément.
 
@@ -590,21 +878,35 @@
     return { open: open, close: close };
   }
 
-  var filterEls = {
-    vehicules: {
-      decision: { btn: document.getElementById('vehFilterBtn'), list: document.getElementById('vehFilterList') },
-      demandeur: { btn: document.getElementById('vehDemandeurFilterBtn'), list: document.getElementById('vehDemandeurFilterList') }
-    },
-    materiels: {
-      decision: { btn: document.getElementById('matFilterBtn'), list: document.getElementById('matFilterList') },
-      demandeur: { btn: document.getElementById('matDemandeurFilterBtn'), list: document.getElementById('matDemandeurFilterList') }
-    }
-  };
+  // Construction générique, pour les 4 pages, des éléments de filtre et de
+  // leur menu déroulant — les mêmes fonctions (toggleFilterValue,
+  // buildFilterMenu…) servent aussi bien aux filtres Décision/Demandeur
+  // des pages de demandes qu'aux filtres Disponibilité/Type des pages de
+  // gestion du parc.
+  var filterEls = {};
+  var filterDropdowns = {};
+  ALL_PAGES.forEach(function (pageKey) {
+    filterEls[pageKey] = {};
+    filterDropdowns[pageKey] = {};
+    FILTER_KEYS[pageKey].forEach(function (filterKey) {
+      var ids = FILTER_DOM_IDS[pageKey][filterKey];
+      var btn = document.getElementById(ids.btn);
+      var list = document.getElementById(ids.list);
+      filterEls[pageKey][filterKey] = { btn: btn, list: list };
+      filterDropdowns[pageKey][filterKey] = setupDropdown(btn, list, function () { buildFilterMenu(pageKey, filterKey); });
+    });
+  });
+  var activeFilters = {};
+  ALL_PAGES.forEach(function (pageKey) {
+    activeFilters[pageKey] = {};
+    FILTER_KEYS[pageKey].forEach(function (filterKey) { activeFilters[pageKey][filterKey] = []; });
+  });
 
   function updateFilterButtonLabel(pageKey, filterKey) {
     var selected = activeFilters[pageKey][filterKey];
     var btn = filterEls[pageKey][filterKey].btn;
-    btn.textContent = selected.length ? (filterFieldLabels[filterKey] + ' (' + selected.length + ')') : filterFieldLabels[filterKey];
+    var label = filterFieldLabels[pageKey][filterKey];
+    btn.textContent = selected.length ? (label + ' (' + selected.length + ')') : label;
   }
 
   // Coche/décoche une valeur pour ce filtre (sélection multiple : chaque
@@ -700,22 +1002,103 @@
     }
   }
 
-  var filterDropdowns = {
-    vehicules: {
-      decision: setupDropdown(filterEls.vehicules.decision.btn, filterEls.vehicules.decision.list, function () { buildFilterMenu('vehicules', 'decision'); }),
-      demandeur: setupDropdown(filterEls.vehicules.demandeur.btn, filterEls.vehicules.demandeur.list, function () { buildFilterMenu('vehicules', 'demandeur'); })
-    },
-    materiels: {
-      decision: setupDropdown(filterEls.materiels.decision.btn, filterEls.materiels.decision.list, function () { buildFilterMenu('materiels', 'decision'); }),
-      demandeur: setupDropdown(filterEls.materiels.demandeur.btn, filterEls.materiels.demandeur.list, function () { buildFilterMenu('materiels', 'demandeur'); })
-    }
-  };
+  // Coche/décoche une valeur pour ce filtre (sélection multiple : chaque
+  // case cochée s'ajoute aux autres, en OU) et met à jour le tableau
+  // aussitôt — sans fermer le menu, pour pouvoir en cocher plusieurs à
+  // la suite.
+  function toggleFilterValue(pageKey, filterKey, value) {
+    var selected = activeFilters[pageKey][filterKey];
+    var idx = selected.indexOf(value);
+    if (idx === -1) selected.push(value); else selected.splice(idx, 1);
+    updateFilterButtonLabel(pageKey, filterKey);
+    renderPage(pageKey);
+  }
 
-  // Toutes les valeurs rencontrées, pour un champ de ligne donné (colonne
-  // 'decision' ou 'demandeur'), dans les données chargées de cette page,
-  // dédupliquées et triées (comme getAllCadreNames() dans FSJ) : le
-  // filtre reflète toujours les libellés réels de la table, quels
-  // qu'ils soient.
+  function clearFilter(pageKey, filterKey) {
+    activeFilters[pageKey][filterKey] = [];
+    updateFilterButtonLabel(pageKey, filterKey);
+    renderPage(pageKey);
+    buildFilterMenu(pageKey, filterKey);
+  }
+
+  // Reconstruit le contenu d'un menu de filtre à choix multiple (une
+  // case à cocher par valeur réellement rencontrée dans les données
+  // chargées, comme getAllCadreNames() dans FSJ, mais avec des cases à
+  // cocher plutôt qu'un choix unique) : appelé juste avant chaque
+  // ouverture, pour refléter l'état courant des données.
+  function buildFilterMenu(pageKey, filterKey) {
+    var list = filterEls[pageKey][filterKey].list;
+    list.innerHTML = '';
+    var selected = activeFilters[pageKey][filterKey];
+
+    function addAction(text, onClick) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'dropdown-menu__item';
+      btn.setAttribute('role', 'menuitem');
+      btn.textContent = text;
+      btn.addEventListener('click', onClick);
+      li.appendChild(btn);
+      list.appendChild(li);
+    }
+    function addCheckbox(value) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var label = document.createElement('label');
+      label.className = 'dropdown-menu__item dropdown-menu__item--checkbox';
+      var isChecked = selected.indexOf(value) !== -1;
+      if (isChecked) label.classList.add('dropdown-menu__item--checked');
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = isChecked;
+      checkbox.addEventListener('change', function () {
+        label.classList.toggle('dropdown-menu__item--checked', checkbox.checked);
+        toggleFilterValue(pageKey, filterKey, value);
+      });
+      var span = document.createElement('span');
+      span.textContent = value;
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      li.appendChild(label);
+      list.appendChild(li);
+    }
+    function addSection(label) {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var p = document.createElement('p');
+      p.className = 'dropdown-menu__section';
+      p.textContent = label;
+      li.appendChild(p);
+      list.appendChild(li);
+    }
+    function addDivider() {
+      var li = document.createElement('li');
+      li.setAttribute('role', 'none');
+      var hr = document.createElement('hr');
+      hr.className = 'dropdown-menu__divider';
+      li.appendChild(hr);
+      list.appendChild(li);
+    }
+
+    if (selected.length) {
+      addAction('Tout désélectionner', function () { clearFilter(pageKey, filterKey); });
+      addDivider();
+    }
+
+    var values = getAllFieldValues(pageKey, filterKey);
+    if (!values.length) {
+      addSection('(aucune donnée chargée)');
+    } else {
+      values.forEach(addCheckbox);
+    }
+  }
+
+  // Toutes les valeurs rencontrées, pour un champ de ligne donné, dans les
+  // données chargées de cette page, dédupliquées et triées (comme
+  // getAllCadreNames() dans FSJ) : le filtre reflète toujours les
+  // libellés réels de la table, quels qu'ils soient.
   function getAllFieldValues(pageKey, fieldName) {
     var seen = {};
     var out = [];
@@ -729,17 +1112,45 @@
     return out;
   }
 
-  document.getElementById('vehRefreshBtn').addEventListener('click', function () { loadPageData('vehicules'); });
-  document.getElementById('matRefreshBtn').addEventListener('click', function () { loadPageData('materiels'); });
+  ALL_PAGES.forEach(function (pageKey) {
+    var btn = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'RefreshBtn');
+    if (btn) btn.addEventListener('click', function () { loadPageData(pageKey); });
+  });
 
-  // ---- Paramètres ---------------------------------------------------------
+  // ---- Zone "Configuration" (geste caché) --------------------------------
+  // Regroupe, derrière le même geste qu'avant, les deux pages de gestion
+  // du parc et les réglages du widget, choisis via un contrôle segmenté
+  // (fr-segmented) plutôt que par des onglets séparés du menu principal.
 
-  function openSettings() {
+  var configTabPanels = {
+    gestionVehicules: document.getElementById('configPanelGestionVehicules'),
+    gestionMateriels: document.getElementById('configPanelGestionMateriels'),
+    reglages: document.getElementById('configPanelReglages')
+  };
+  var configTabRadios = {
+    gestionVehicules: document.getElementById('configTabGestionVehicules'),
+    gestionMateriels: document.getElementById('configTabGestionMateriels'),
+    reglages: document.getElementById('configTabReglages')
+  };
+  function setConfigTab(tab) {
+    Object.keys(configTabPanels).forEach(function (key) {
+      configTabPanels[key].hidden = (key !== tab);
+    });
+    if (configTabRadios[tab]) configTabRadios[tab].checked = true;
+  }
+  Object.keys(configTabRadios).forEach(function (tab) {
+    configTabRadios[tab].addEventListener('change', function () {
+      if (this.checked) setConfigTab(tab);
+    });
+  });
+
+  function openSettings(tab) {
     viewBeforeSettings = currentView;
     panelVehicules.hidden = true;
     panelMateriels.hidden = true;
     panelSettings.hidden = false;
     settingsStatusZone.innerHTML = '';
+    setConfigTab(tab || 'gestionVehicules');
     fillSettingsForm();
     refreshTableList();
   }
@@ -748,14 +1159,15 @@
     setView(viewBeforeSettings);
   }
   cancelSettingsBtn.addEventListener('click', closeSettings);
+  closeConfigBtn.addEventListener('click', closeSettings);
 
-  // ---- Accès aux paramètres : geste caché sur le bloc marque -----------
+  // ---- Accès à la configuration : geste caché sur le bloc marque --------
   //
   // Pas de bouton "Paramètres" visible : conformément à la demande, seuls
   // les utilisateurs qui savent qu'il faut cliquer 5 fois, rapidement, sur
   // le bloc marque du header (logo + "Division réserves jeunesse")
-  // ouvrent le panneau Paramètres. Ce n'est PAS un contrôle d'accès réel
-  // (rien n'empêche techniquement quelqu'un d'ouvrir ce panneau) : l'API
+  // ouvrent la zone Configuration. Ce n'est PAS un contrôle d'accès réel
+  // (rien n'empêche techniquement quelqu'un d'ouvrir cette zone) : l'API
   // des widgets personnalisés Grist n'expose ni le rôle du visiteur sur
   // le document (Owner/Editor/Viewer), ni les attributs user.* définis
   // dans les règles d'accès (ex. user.Droits.Gpe) — voir les échanges
@@ -774,30 +1186,29 @@
   });
 
   function pageConfigFromForm(pageKey) {
-    var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
-    var cfg = defaultPageConfig();
+    var prefix = PAGE_FORM_PREFIX[pageKey];
+    var cfg = defaultConfigFor(pageKey);
     cfg.table = document.getElementById(prefix + 'table').value;
-    ROLES.forEach(function (role) {
+    PAGE_ROLES[pageKey].forEach(function (role) {
       var el = document.getElementById(prefix + 'col_' + role);
       if (el) cfg.col[role] = el.value;
     });
-    cfg.valeurs.attente = document.getElementById(prefix + 'val_attente').value || 'En attente';
-    cfg.valeurs.validee = document.getElementById(prefix + 'val_validee').value || 'Validée';
-    cfg.valeurs.refusee = document.getElementById(prefix + 'val_refusee').value || 'Refusée';
-    cfg.valeurs.percu = document.getElementById(prefix + 'val_percu').value || 'Perçu';
-    cfg.valeurs.reintegre = document.getElementById(prefix + 'val_reintegre').value || 'Réintégré';
+    var defaults = PAGE_VALEURS_DEFAULT[pageKey];
+    Object.keys(cfg.valeurs).forEach(function (key) {
+      var el = document.getElementById(prefix + 'val_' + key);
+      cfg.valeurs[key] = (el && el.value) ? el.value : defaults[key];
+    });
     return cfg;
   }
 
   function fillSettingsForm() {
-    ['vehicules', 'materiels'].forEach(function (pageKey) {
-      var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+    ALL_PAGES.forEach(function (pageKey) {
+      var prefix = PAGE_FORM_PREFIX[pageKey];
       var cfg = settings[pageKey];
-      document.getElementById(prefix + 'val_attente').value = cfg.valeurs.attente;
-      document.getElementById(prefix + 'val_validee').value = cfg.valeurs.validee;
-      document.getElementById(prefix + 'val_refusee').value = cfg.valeurs.refusee;
-      document.getElementById(prefix + 'val_percu').value = cfg.valeurs.percu;
-      document.getElementById(prefix + 'val_reintegre').value = cfg.valeurs.reintegre;
+      Object.keys(cfg.valeurs).forEach(function (key) {
+        var el = document.getElementById(prefix + 'val_' + key);
+        if (el) el.value = cfg.valeurs[key];
+      });
     });
   }
 
@@ -818,15 +1229,14 @@
     else selectEl.value = '';
   }
 
-  // Rafraîchit la liste des tables du document dans les deux sélecteurs de
-  // table, puis, pour la table déjà choisie (le cas échéant), rafraîchit
-  // aussi la liste des colonnes disponibles.
+  // Rafraîchit la liste des tables du document dans les quatre sélecteurs
+  // de table, puis, pour la table déjà choisie (le cas échéant),
+  // rafraîchit aussi la liste des colonnes disponibles.
   function refreshTableList() {
     grist.docApi.listTables().then(function (tables) {
       allTableIds = tables || [];
-      ['vehicules', 'materiels'].forEach(function (pageKey) {
-        var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
-        var sel = document.getElementById(prefix + 'table');
+      ALL_PAGES.forEach(function (pageKey) {
+        var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
         fillSelectWithOptions(sel, allTableIds, settings[pageKey].table, 'Choisir une table…');
         if (sel.value) refreshColumnLists(pageKey, sel.value);
       });
@@ -838,9 +1248,11 @@
   // Rafraîchit, pour une page donnée, les sélecteurs de rôle de colonne à
   // partir des colonnes réellement présentes dans la table choisie.
   function refreshColumnLists(pageKey, tableId) {
-    var prefix = pageKey === 'vehicules' ? 'veh_' : 'mat_';
+    var prefix = PAGE_FORM_PREFIX[pageKey];
+    var roles = PAGE_ROLES[pageKey];
+    var optionalRoles = PAGE_OPTIONAL_COLS[pageKey];
     if (!tableId) {
-      ROLES.forEach(function (role) {
+      roles.forEach(function (role) {
         var el = document.getElementById(prefix + 'col_' + role);
         if (el) fillSelectWithOptions(el, [], '', 'Choisir une table d’abord…');
       });
@@ -851,21 +1263,20 @@
         return c !== 'id' && c !== 'manualSort';
       }).sort(function (a, b) { return a.localeCompare(b, 'fr'); });
       var cfg = settings[pageKey];
-      ROLES.forEach(function (role) {
+      roles.forEach(function (role) {
         var el = document.getElementById(prefix + 'col_' + role);
         if (!el) return;
         var current = (cfg.table === tableId) ? cfg.col[role] : '';
-        fillSelectWithOptions(el, columns, current, role === 'quantite' || role === 'commentaire' || role === 'conflit' ? '(aucune)' : 'Choisir une colonne…');
+        fillSelectWithOptions(el, columns, current, optionalRoles.indexOf(role) !== -1 ? '(aucune)' : 'Choisir une colonne…');
       });
     }).catch(function (e) {
       showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + (e && e.message ? e.message : e));
     });
   }
 
-  ['veh_table', 'mat_table'].forEach(function (id) {
-    document.getElementById(id).addEventListener('change', function () {
-      refreshColumnLists(this.getAttribute('data-page'), this.value);
-    });
+  ALL_PAGES.forEach(function (pageKey) {
+    var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
+    if (sel) sel.addEventListener('change', function () { refreshColumnLists(pageKey, this.value); });
   });
 
   function showSettingsStatus(type, message) {
@@ -873,7 +1284,8 @@
   }
 
   saveSettingsBtn.addEventListener('click', function () {
-    var next = { vehicules: pageConfigFromForm('vehicules'), materiels: pageConfigFromForm('materiels') };
+    var next = {};
+    ALL_PAGES.forEach(function (pageKey) { next[pageKey] = pageConfigFromForm(pageKey); });
     grist.setOption('reservationsConfig', next).then(function () {
       settings = next;
       showSettingsStatus('success', 'Paramètres enregistrés.');
@@ -888,59 +1300,144 @@
   grist.ready({
     requiredAccess: 'full'
     // Pas de mapping "columns" ici : à la différence de FSJ, ce widget lit
-    // deux tables indépendantes via grist.docApi (accès complet), pas la
+    // des tables indépendantes via grist.docApi (accès complet), pas la
     // table unique associée au widget — le choix des tables/colonnes se
-    // fait depuis le panneau "Paramètres" ci-dessus.
+    // fait depuis la zone "Configuration" ci-dessus.
   });
 
   grist.onOptions(function (options) {
     var loaded = (options && options.reservationsConfig) ? options.reservationsConfig : null;
-    settings = {
-      vehicules: (loaded && loaded.vehicules) ? mergeConfig(loaded.vehicules) : defaultPageConfig(),
-      materiels: (loaded && loaded.materiels) ? mergeConfig(loaded.materiels) : defaultPageConfig()
-    };
+    settings = {};
+    ALL_PAGES.forEach(function (pageKey) {
+      settings[pageKey] = (loaded && loaded[pageKey]) ? mergeConfig(pageKey, loaded[pageKey]) : defaultConfigFor(pageKey);
+    });
     settingsLoaded = true;
     fillSettingsForm();
     refreshAll();
-    if (!isPageConfigComplete(settings.vehicules) && !isPageConfigComplete(settings.materiels)) {
-      openSettings();
+    if (ALL_PAGES.every(function (pageKey) { return !isPageConfigComplete(pageKey, settings[pageKey]); })) {
+      openSettings('reglages');
     }
   });
 
-  function mergeConfig(loaded) {
-    var cfg = defaultPageConfig();
+  function mergeConfig(pageKey, loaded) {
+    var cfg = defaultConfigFor(pageKey);
     cfg.table = loaded.table || '';
-    if (loaded.col) Object.keys(loaded.col).forEach(function (k) { cfg.col[k] = loaded.col[k] || ''; });
-    if (loaded.valeurs) {
-      cfg.valeurs.attente = loaded.valeurs.attente || cfg.valeurs.attente;
-      cfg.valeurs.validee = loaded.valeurs.validee || cfg.valeurs.validee;
-      cfg.valeurs.refusee = loaded.valeurs.refusee || cfg.valeurs.refusee;
-      cfg.valeurs.percu = loaded.valeurs.percu || cfg.valeurs.percu;
-      cfg.valeurs.reintegre = loaded.valeurs.reintegre || cfg.valeurs.reintegre;
-    }
+    if (loaded.col) Object.keys(cfg.col).forEach(function (k) { if (loaded.col[k]) cfg.col[k] = loaded.col[k]; });
+    if (loaded.valeurs) Object.keys(cfg.valeurs).forEach(function (k) { if (loaded.valeurs[k]) cfg.valeurs[k] = loaded.valeurs[k]; });
     return cfg;
   }
 
-  function isPageConfigComplete(cfg) {
-    return !!(cfg.table && cfg.col.demandeur && cfg.col.dateDemande && cfg.col.objet && cfg.col.decision);
+  function isPageConfigComplete(pageKey, cfg) {
+    return !!(cfg.table && PAGE_REQUIRED_COLS[pageKey].every(function (role) { return !!cfg.col[role]; }));
   }
 
   // ---- Chargement des données depuis Grist -------------------------------
 
   function refreshAll() {
-    loadPageData('vehicules');
-    loadPageData('materiels');
+    ALL_PAGES.forEach(function (pageKey) { loadPageData(pageKey); });
+  }
+
+  // ---- Résolution des colonnes de type Référence simple -------------------
+  // fetchTable() renvoie, pour une colonne Référence simple (type Grist
+  // "Ref:AutreTable"), l'identifiant numérique brut de la ligne visée (ex.
+  // 9) et non le texte affiché dans Grist (ex. le nom du militaire) — à la
+  // différence des Listes de choix / Références multiples, déjà gérées par
+  // textOf(). Pour afficher la même valeur que dans Grist, on relit les
+  // tables de métadonnées internes du document (_grist_Tables /
+  // _grist_Tables_column, utilisées par d'autres widgets officiels comme le
+  // widget Calendrier bien que non documentées) afin de connaître, pour
+  // chaque colonne Référence utilisée par la page : la table visée et sa
+  // « colonne d'affichage » (Show column, réglée dans Grist), puis on
+  // récupère cette colonne dans la table visée pour construire un mapping
+  // id de ligne -> texte affiché. En cas d'échec (permissions, ancienne
+  // version de Grist…), on se dégrade silencieusement vers l'identifiant
+  // brut, comme auparavant.
+  var gristMetaPromise = null;
+  function loadGristMeta() {
+    if (gristMetaPromise) return gristMetaPromise;
+    gristMetaPromise = Promise.all([
+      grist.docApi.fetchTable('_grist_Tables'),
+      grist.docApi.fetchTable('_grist_Tables_column')
+    ]).then(function (results) {
+      var tablesData = results[0];
+      var columnsData = results[1];
+      var tablesById = {};
+      for (var i = 0; i < tablesData.id.length; i++) {
+        tablesById[tablesData.id[i]] = tablesData.tableId[i];
+      }
+      var columnsByRowId = {};
+      var columnsByTableAndColId = {};
+      for (var j = 0; j < columnsData.id.length; j++) {
+        var rowId = columnsData.id[j];
+        var meta = {
+          colId: columnsData.colId[j],
+          parentId: columnsData.parentId[j],
+          type: columnsData.type[j],
+          visibleCol: columnsData.visibleCol[j]
+        };
+        columnsByRowId[rowId] = meta;
+        var tableId = tablesById[meta.parentId];
+        if (tableId) columnsByTableAndColId[tableId + '.' + meta.colId] = meta;
+      }
+      return { columnsByRowId: columnsByRowId, columnsByTableAndColId: columnsByTableAndColId };
+    }).catch(function () {
+      return null;
+    });
+    return gristMetaPromise;
+  }
+
+  var refDisplayMapCache = {};
+  function fetchRefDisplayMap(targetTableId, visibleColId) {
+    var cacheKey = targetTableId + '.' + visibleColId;
+    if (!refDisplayMapCache[cacheKey]) {
+      refDisplayMapCache[cacheKey] = grist.docApi.fetchTable(targetTableId).then(function (data) {
+        var map = {};
+        if (data && data.id) {
+          for (var i = 0; i < data.id.length; i++) {
+            map[data.id[i]] = data[visibleColId] ? data[visibleColId][i] : data.id[i];
+          }
+        }
+        return map;
+      }).catch(function () { return {}; });
+    }
+    return refDisplayMapCache[cacheKey];
+  }
+
+  function resolveReferenceColumns(pageKey, cfg, data) {
+    return loadGristMeta().then(function (meta) {
+      if (!meta) return data;
+      var pending = [];
+      PAGE_ROLES[pageKey].forEach(function (role) {
+        var colId = cfg.col[role];
+        if (!colId || !data[colId]) return;
+        var colMeta = meta.columnsByTableAndColId[cfg.table + '.' + colId];
+        if (!colMeta || typeof colMeta.type !== 'string' || colMeta.type.indexOf('Ref:') !== 0) return;
+        var visibleColMeta = colMeta.visibleCol ? meta.columnsByRowId[colMeta.visibleCol] : null;
+        if (!visibleColMeta) return; // Pas de "colonne d'affichage" réglée dans Grist : rien à résoudre de plus.
+        var targetTableId = colMeta.type.slice(4);
+        pending.push(
+          fetchRefDisplayMap(targetTableId, visibleColMeta.colId).then(function (map) {
+            data[colId] = data[colId].map(function (v) {
+              return (v && Object.prototype.hasOwnProperty.call(map, v)) ? map[v] : v;
+            });
+          })
+        );
+      });
+      return pending.length ? Promise.all(pending).then(function () { return data; }) : data;
+    });
   }
 
   function loadPageData(pageKey) {
     var cfg = settings[pageKey];
-    if (!isPageConfigComplete(cfg)) {
+    if (!isPageConfigComplete(pageKey, cfg)) {
       pageData[pageKey] = { rows: [], loaded: false };
       renderPage(pageKey);
       return;
     }
     grist.docApi.fetchTable(cfg.table).then(function (data) {
-      pageData[pageKey] = { rows: columnarToRows(data, cfg), loaded: true };
+      return resolveReferenceColumns(pageKey, cfg, data);
+    }).then(function (data) {
+      pageData[pageKey] = { rows: columnarToRows(data, cfg, PAGE_ROLES[pageKey]), loaded: true };
       renderPage(pageKey);
     }).catch(function (e) {
       pageData[pageKey] = { rows: [], loaded: false, error: (e && e.message) ? e.message : String(e) };
@@ -950,13 +1447,15 @@
 
   // Convertit le format colonnaire renvoyé par fetchTable ({id: [...],
   // Colonne: [...]}) en tableau de lignes exploitables, selon le mapping
-  // de colonnes choisi dans les paramètres pour cette page.
-  function columnarToRows(data, cfg) {
+  // de colonnes choisi dans les paramètres pour cette page et la liste de
+  // rôles propre à cette page (ROLES pour les demandes, GESTION_ROLES
+  // pour la gestion du parc).
+  function columnarToRows(data, cfg, roles) {
     if (!data || !data.id) return [];
     var rows = [];
     for (var i = 0; i < data.id.length; i++) {
       var row = { id: data.id[i] };
-      ROLES.forEach(function (role) {
+      roles.forEach(function (role) {
         var colName = cfg.col[role];
         row[role] = colName ? data[colName][i] : null;
       });
@@ -975,8 +1474,10 @@
   // (Liste de choix / liste de références) — sans ce traitement, ce
   // tableau s'affichait littéralement comme "L,a,b" dans les cellules
   // (repris du même traitement que FSJ, cf. sa fonction codesOf()).
-  // Une Référence simple reste un identifiant numérique brut (id de la
-  // ligne visée) : ce cas n'est pas résolu en texte ici.
+  // Une Référence simple est déjà résolue en amont, dans loadPageData()
+  // (voir resolveReferenceColumns) lorsque sa « colonne d'affichage » est
+  // configurée dans Grist ; si elle ne l'est pas, ou si la résolution a
+  // échoué, elle reste un identifiant numérique brut ici.
   function textOf(v) {
     if (v === null || v === undefined) return '';
     if (Array.isArray(v)) {
@@ -1032,13 +1533,36 @@
     });
   }
 
-  function renderPage(pageKey) {
+  // Équivalent de updateDecision() pour les pages de gestion du parc :
+  // bascule la colonne Disponibilité entre les deux libellés réglés.
+  function updateEtat(pageKey, rowId, newValue) {
     var cfg = settings[pageKey];
-    var zone = document.getElementById(pageKey === 'vehicules' ? 'vehZone' : 'matZone');
-    var countEl = document.getElementById(pageKey === 'vehicules' ? 'vehCount' : 'matCount');
+    var action = ['UpdateRecord', cfg.table, rowId, (function () { var o = {}; o[cfg.col.etat] = newValue; return o; })()];
+    grist.docApi.applyUserActions([action]).then(function () {
+      pageData[pageKey].rows.forEach(function (r) { if (r.id === rowId) r.etat = newValue; });
+      renderPage(pageKey);
+      loadPageData(pageKey);
+    }).catch(function (e) {
+      window.alert('Impossible de mettre à jour la disponibilité : ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  // Aiguillage générique : les pages de demandes (tableau + boutons
+  // d'action Valider/Refuser/…) et les pages de gestion du parc (tableau
+  // + bascule Disponible/Indisponible) ont un rendu suffisamment
+  // différent pour vivre dans deux fonctions séparées.
+  function renderPage(pageKey) {
+    if (PAGE_KIND[pageKey] === 'gestion') return renderGestionPage(pageKey);
+    return renderDemandePage(pageKey);
+  }
+
+  function renderDemandePage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
+    var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
     var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
 
-    if (!isPageConfigComplete(cfg)) {
+    if (!isPageConfigComplete(pageKey, cfg)) {
       countEl.textContent = '';
       zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
         '<p>Aucune table n’est configurée pour cette page. Ouvrez le bouton « Paramètres » en haut de la page pour associer une table Grist et ses colonnes.</p>' +
@@ -1096,7 +1620,7 @@
       ? [16, 12, 16, 14, 23, 19]
       : [18, 14, 19, 17, 32];
 
-    var headCells = ['Actions', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
+    var headCells = ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
     if (hasCommentaire) headCells.push('Commentaire');
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
@@ -1143,7 +1667,7 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="Refuser" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (isRefusee ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-r-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-login-box-r-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
         '</div>';
 
       return '<tr data-row-id="' + r.id + '">' +
@@ -1175,6 +1699,271 @@
       });
     });
   }
+
+  // Rendu des pages "Gérer les véhicules" / "Gérer le matériel" (onglets
+  // de la zone Configuration) : recensement du parc, indépendant des
+  // demandes de réservation — un identifiant, un type/catégorie, et une
+  // disponibilité qu'on peut basculer d'un clic (au lieu des 5 boutons
+  // d'action des pages de demandes, ici un seul état à deux valeurs).
+  function renderGestionPage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
+    var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
+    var itemLabel = pageKey === 'gestionVehicules' ? 'véhicule' : 'matériel';
+    var typeLabel = pageKey === 'gestionVehicules' ? 'Type de véhicule' : 'Catégorie';
+
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
+        '<p>Aucune table n’est configurée pour cette page. Associez une table Grist et ses colonnes ci-dessous, dans l’onglet « Réglages du widget ».</p>' +
+        '</div>';
+      return;
+    }
+    if (pageData[pageKey].error) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
+      return;
+    }
+    if (!pageData[pageKey].loaded) {
+      countEl.textContent = '';
+      zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
+      return;
+    }
+
+    var all = pageData[pageKey].rows;
+    var filters = activeFilters[pageKey];
+    var rows = all.filter(function (r) {
+      if (filters.etat.length && filters.etat.indexOf(textOf(r.etat)) === -1) return false;
+      if (filters.type.length && filters.type.indexOf(textOf(r.type)) === -1) return false;
+      return true;
+    });
+
+    rows.sort(function (a, b) { return textOf(a.identifiant).localeCompare(textOf(b.identifiant), 'fr'); });
+
+    countEl.textContent = rows.length + ' élément(s) affiché(s) sur ' + all.length;
+
+    if (all.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucun élément dans la table configurée.</p></div>';
+      return;
+    }
+    if (rows.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucun élément ne correspond au filtre sélectionné.</p></div>';
+      return;
+    }
+
+    var hasCommentaire = !!cfg.col.commentaire;
+    var colWidths = hasCommentaire ? [26, 20, 18, 36] : [32, 24, 44];
+    var headCells = ['Identifiant', escapeHtml(typeLabel), 'Disponibilité'];
+    if (hasCommentaire) headCells.push('Commentaire');
+    var head = '<tr>' + headCells.map(function (label, i) {
+      return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
+    }).join('') + '</tr>';
+
+    var body = rows.map(function (r) {
+      var etatText = textOf(r.etat);
+      var isDisponible = !etatText || normalizeKey(etatText) === normalizeKey(cfg.valeurs.disponible);
+      var toggleTitle = isDisponible ? 'Marquer indisponible' : 'Marquer disponible';
+      var toggleIcon = isDisponible ? 'fr-icon-close-circle-line' : 'fr-icon-check-line';
+      var badgeClass = isDisponible ? 'fr-badge--success' : 'fr-badge--error';
+      var etatDisplay = etatText || cfg.valeurs.disponible;
+
+      return '<tr data-row-id="' + r.id + '">' +
+        '<td>' + escapeHtml(textOf(r.identifiant)) + '</td>' +
+        '<td>' + escapeHtml(textOf(r.type)) + '</td>' +
+        '<td>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + toggleIcon + ' fr-btn--icon-left gestion-etat-btn" data-action="toggle-etat" title="' + escapeHtml(toggleTitle) + '">' +
+        '<span class="fr-badge fr-badge--sm ' + badgeClass + '">' + escapeHtml(etatDisplay) + '</span>' +
+        '</button>' +
+        '</td>' +
+        (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
+        '</tr>';
+    }).join('');
+
+    zone.innerHTML =
+      '<div class="fr-table fr-table--bordered">' +
+      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
+      '<table class="req-table"><caption class="fr-sr-only">' + escapeHtml(itemLabel) + '</caption>' +
+      '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
+      '</table>' +
+      '</div></div></div>' +
+      '</div>';
+
+    zone.querySelectorAll('button[data-action="toggle-etat"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tr = btn.closest('tr[data-row-id]');
+        var rowId = Number(tr.getAttribute('data-row-id'));
+        var row = null;
+        pageData[pageKey].rows.forEach(function (r) { if (r.id === rowId) row = r; });
+        var currentEtat = row ? textOf(row.etat) : '';
+        var currentlyDisponible = !currentEtat || normalizeKey(currentEtat) === normalizeKey(cfg.valeurs.disponible);
+        var target = currentlyDisponible ? cfg.valeurs.indisponible : cfg.valeurs.disponible;
+        updateEtat(pageKey, rowId, target);
+      });
+    });
+  }
+
+  // ---- Fenêtre "Nouvelle demande" ------------------------------------------
+  // Formulaire de création d'une demande (AddRecord), partagé entre les
+  // deux pages de demandes. Les champs affichés dépendent des colonnes
+  // réglées pour la page (seuls les rôles mappés sont proposés) ; un champ
+  // dont la colonne Grist est une Référence simple (Ref:AutreTable) est
+  // rendu comme une liste déroulante de la table visée (même résolution
+  // de « colonne d'affichage » que resolveReferenceColumns ci-dessus) au
+  // lieu d'un champ texte, pour écrire un id de ligne valide.
+
+  var NEW_REQUEST_ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif'];
+  var NEW_REQUEST_LABELS = {
+    demandeur: 'Demandeur',
+    quantite: 'Quantité',
+    dateDebut: 'Date de début',
+    dateFin: 'Date de fin',
+    motif: 'Motif'
+  };
+
+  var newRequestOverlay = document.getElementById('newRequestOverlay');
+  var newRequestForm = document.getElementById('newRequestForm');
+  var newRequestBody = document.getElementById('newRequestBody');
+  var newRequestStatus = document.getElementById('newRequestStatus');
+  var newRequestTitle = document.getElementById('newRequestTitle');
+  var currentNewRequestPage = null;
+
+  function closeNewRequestModal() {
+    newRequestOverlay.hidden = true;
+    currentNewRequestPage = null;
+    newRequestForm.reset();
+    newRequestStatus.textContent = '';
+  }
+
+  function openNewRequestModal(pageKey) {
+    var cfg = settings[pageKey];
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant de créer une demande.');
+      return;
+    }
+    currentNewRequestPage = pageKey;
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+    newRequestTitle.textContent = pageKey === 'vehicules'
+      ? 'Nouvelle demande de réservation de véhicule'
+      : 'Nouvelle demande de réservation de matériel';
+    newRequestStatus.textContent = '';
+    newRequestBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
+    newRequestOverlay.hidden = false;
+    buildNewRequestForm(pageKey, cfg, objetLabel).then(function (html) {
+      if (currentNewRequestPage !== pageKey) return; // fermé entre-temps
+      newRequestBody.innerHTML = html;
+    });
+  }
+
+  // Construit les champs du formulaire, dans l'ordre de NEW_REQUEST_ROLES,
+  // en ne proposant que les rôles réellement mappés pour cette page (et
+  // 'quantite' seulement sur la page matériels). Renvoie une promesse du
+  // HTML complet (les champs Référence attendent la résolution de leurs
+  // options avant de s'afficher).
+  function buildNewRequestForm(pageKey, cfg, objetLabel) {
+    return loadGristMeta().then(function (meta) {
+      var fieldPromises = [];
+      NEW_REQUEST_ROLES.forEach(function (role) {
+        var colId = cfg.col[role];
+        if (!colId) return; // rôle non mappé pour cette page : pas de champ
+        if (role === 'quantite' && pageKey !== 'materiels') return;
+        var label = role === 'objet' ? objetLabel : NEW_REQUEST_LABELS[role];
+        var inputId = 'newreq_' + role;
+        var colMeta = meta ? meta.columnsByTableAndColId[cfg.table + '.' + colId] : null;
+
+        if (colMeta && typeof colMeta.type === 'string' && colMeta.type.indexOf('Ref:') === 0) {
+          var targetTableId = colMeta.type.slice(4);
+          var visibleColMeta = colMeta.visibleCol ? meta.columnsByRowId[colMeta.visibleCol] : null;
+          var visibleColId = visibleColMeta ? visibleColMeta.colId : 'id';
+          fieldPromises.push(
+            fetchRefDisplayMap(targetTableId, visibleColId).then(function (map) {
+              var options = Object.keys(map).map(function (id) {
+                return { id: id, text: String(map[id]) };
+              }).sort(function (a, b) { return a.text.localeCompare(b.text, 'fr'); });
+              var optionsHtml = '<option value="">Choisir…</option>' + options.map(function (o) {
+                return '<option value="' + escapeHtml(o.id) + '">' + escapeHtml(o.text) + '</option>';
+              }).join('');
+              return '<div class="fr-select-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
+                '<select class="fr-select" id="' + inputId + '" data-role="' + role + '" data-kind="ref" required>' + optionsHtml + '</select></div>';
+            })
+          );
+        } else if (role === 'quantite') {
+          fieldPromises.push(Promise.resolve(
+            '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
+            '<input class="fr-input" type="number" min="1" step="1" id="' + inputId + '" data-role="' + role + '" data-kind="number" required></div>'
+          ));
+        } else if (role === 'dateDebut' || role === 'dateFin') {
+          fieldPromises.push(Promise.resolve(
+            '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
+            '<input class="fr-input" type="date" id="' + inputId + '" data-role="' + role + '" data-kind="date" required></div>'
+          ));
+        } else if (role === 'motif') {
+          fieldPromises.push(Promise.resolve(
+            '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
+            '<textarea class="fr-input" id="' + inputId + '" data-role="' + role + '" data-kind="text" rows="3" required></textarea></div>'
+          ));
+        } else {
+          fieldPromises.push(Promise.resolve(
+            '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
+            '<input class="fr-input" type="text" id="' + inputId + '" data-role="' + role + '" data-kind="text" required></div>'
+          ));
+        }
+      });
+      return Promise.all(fieldPromises).then(function (parts) { return parts.join(''); });
+    });
+  }
+
+  // Convertit une date "AAAA-MM-JJ" (valeur d'un <input type="date">) en
+  // horodatage Unix (secondes, minuit UTC) — même convention que les
+  // colonnes Date lues depuis Grist (voir parseGristDate ci-dessus).
+  function dateInputToTimestamp(value) {
+    var parts = value.split('-');
+    if (parts.length !== 3) return null;
+    var ms = Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    return isNaN(ms) ? null : Math.floor(ms / 1000);
+  }
+
+  function submitNewRequest(pageKey) {
+    var cfg = settings[pageKey];
+    var fields = {};
+    var inputs = newRequestForm.querySelectorAll('[data-role]');
+    inputs.forEach(function (el) {
+      var role = el.getAttribute('data-role');
+      var kind = el.getAttribute('data-kind');
+      var raw = el.value;
+      var value = raw;
+      if (kind === 'ref') value = raw ? parseInt(raw, 10) : null;
+      else if (kind === 'number') value = raw ? parseInt(raw, 10) : null;
+      else if (kind === 'date') value = raw ? dateInputToTimestamp(raw) : null;
+      fields[cfg.col[role]] = value;
+    });
+    if (cfg.col.decision) fields[cfg.col.decision] = cfg.valeurs.attente;
+    if (cfg.col.dateDemande) fields[cfg.col.dateDemande] = Math.floor(Date.now() / 1000);
+
+    newRequestStatus.textContent = 'Enregistrement…';
+    grist.docApi.applyUserActions([['AddRecord', cfg.table, null, fields]]).then(function () {
+      closeNewRequestModal();
+      loadPageData(pageKey);
+    }).catch(function (e) {
+      newRequestStatus.textContent = '';
+      window.alert('Impossible de créer la demande : ' + (e && e.message ? e.message : e));
+    });
+  }
+
+  document.getElementById('vehNewRequestBtn').addEventListener('click', function () { openNewRequestModal('vehicules'); });
+  document.getElementById('matNewRequestBtn').addEventListener('click', function () { openNewRequestModal('materiels'); });
+  document.getElementById('newRequestCloseBtn').addEventListener('click', closeNewRequestModal);
+  document.getElementById('newRequestCancelBtn').addEventListener('click', closeNewRequestModal);
+  newRequestOverlay.addEventListener('click', function (e) {
+    if (e.target === newRequestOverlay) closeNewRequestModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !newRequestOverlay.hidden) closeNewRequestModal();
+  });
+  newRequestForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!newRequestForm.checkValidity()) { newRequestForm.reportValidity(); return; }
+    if (currentNewRequestPage) submitNewRequest(currentNewRequestPage);
+  });
 
 })();
 </script>

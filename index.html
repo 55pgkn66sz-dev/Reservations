@@ -334,8 +334,8 @@
         </button>
         <ul class="dropdown-menu__list" id="vehDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par demandeur" hidden></ul>
       </div>
-      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
-        Actualiser
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
+        Réinitialiser le filtre
       </button>
       <p class="req-count req-count--push" id="vehCount"></p>
     </div>
@@ -363,8 +363,8 @@
         </button>
         <ul class="dropdown-menu__list" id="matDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de matériels par demandeur" hidden></ul>
       </div>
-      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matRefreshBtn" type="button">
-        Actualiser
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="matRefreshBtn" type="button">
+        Réinitialiser le filtre
       </button>
       <p class="req-count req-count--push" id="matCount"></p>
     </div>
@@ -415,8 +415,8 @@
           </button>
           <ul class="dropdown-menu__list" id="gvTypeFilterList" role="menu" aria-label="Filtrer les véhicules par type" hidden></ul>
         </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
-          Actualiser
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
+          Réinitialiser le filtre
         </button>
         <p class="req-count req-count--push" id="gvCount"></p>
       </div>
@@ -439,8 +439,8 @@
           </button>
           <ul class="dropdown-menu__list" id="gmTypeFilterList" role="menu" aria-label="Filtrer le matériel par catégorie" hidden></ul>
         </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
-          Actualiser
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
+          Réinitialiser le filtre
         </button>
         <p class="req-count req-count--push" id="gmCount"></p>
       </div>
@@ -468,10 +468,6 @@
             <select class="fr-select" id="veh_col_demandeur" data-page="vehicules" data-role="demandeur"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_dateDemande">Date de la demande</label>
-            <select class="fr-select" id="veh_col_dateDemande" data-page="vehicules" data-role="dateDemande"></select>
-          </div>
-          <div class="fr-select-group">
             <label class="fr-label" for="veh_col_objet">Véhicule demandé</label>
             <select class="fr-select" id="veh_col_objet" data-page="vehicules" data-role="objet"></select>
           </div>
@@ -490,10 +486,6 @@
           <div class="fr-select-group">
             <label class="fr-label" for="veh_col_decision">Décision</label>
             <select class="fr-select" id="veh_col_decision" data-page="vehicules" data-role="decision"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_commentaire">Commentaire (optionnel)</label>
-            <select class="fr-select" id="veh_col_commentaire" data-page="vehicules" data-role="commentaire"></select>
           </div>
           <div class="fr-select-group">
             <label class="fr-label" for="veh_col_conflit">Conflit (optionnel)</label>
@@ -538,10 +530,6 @@
             <select class="fr-select" id="mat_col_demandeur" data-page="materiels" data-role="demandeur"></select>
           </div>
           <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_dateDemande">Date de la demande</label>
-            <select class="fr-select" id="mat_col_dateDemande" data-page="materiels" data-role="dateDemande"></select>
-          </div>
-          <div class="fr-select-group">
             <label class="fr-label" for="mat_col_objet">Matériel demandé</label>
             <select class="fr-select" id="mat_col_objet" data-page="materiels" data-role="objet"></select>
           </div>
@@ -564,10 +552,6 @@
           <div class="fr-select-group">
             <label class="fr-label" for="mat_col_decision">Décision</label>
             <select class="fr-select" id="mat_col_decision" data-page="materiels" data-role="decision"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_commentaire">Commentaire (optionnel)</label>
-            <select class="fr-select" id="mat_col_commentaire" data-page="materiels" data-role="commentaire"></select>
           </div>
           <div class="fr-select-group">
             <label class="fr-label" for="mat_col_conflit">Conflit (optionnel)</label>
@@ -619,10 +603,6 @@
             <label class="fr-label" for="gv_col_etat">Disponibilité</label>
             <select class="fr-select" id="gv_col_etat" data-page="gestionVehicules" data-role="etat"></select>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gv_col_commentaire">Commentaire (optionnel)</label>
-            <select class="fr-select" id="gv_col_commentaire" data-page="gestionVehicules" data-role="commentaire"></select>
-          </div>
         </div>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
@@ -655,10 +635,6 @@
           <div class="fr-select-group">
             <label class="fr-label" for="gm_col_etat">Disponibilité</label>
             <select class="fr-select" id="gm_col_etat" data-page="gestionMateriels" data-role="etat"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gm_col_commentaire">Commentaire (optionnel)</label>
-            <select class="fr-select" id="gm_col_commentaire" data-page="gestionMateriels" data-role="commentaire"></select>
           </div>
         </div>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
@@ -737,9 +713,9 @@
   var viewBeforeSettings = 'vehicules';
 
   // Rôles de colonnes des deux pages de demandes (+ 'quantite', propre aux matériels).
-  var ROLES = ['demandeur', 'dateDemande', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'commentaire', 'conflit'];
+  var ROLES = ['demandeur', 'objet', 'quantite', 'dateDebut', 'dateFin', 'motif', 'decision', 'conflit'];
   // Rôles de colonnes des deux pages de gestion du parc (onglets de la zone Configuration).
-  var GESTION_ROLES = ['identifiant', 'type', 'etat', 'commentaire'];
+  var GESTION_ROLES = ['identifiant', 'type', 'etat'];
 
   // Registre des 4 pages du widget : les 2 pages de demandes (menu
   // principal) et les 2 pages de gestion du parc (onglets de la zone
@@ -751,16 +727,16 @@
   var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
   var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
   var PAGE_REQUIRED_COLS = {
-    vehicules: ['demandeur', 'dateDemande', 'objet', 'decision'],
-    materiels: ['demandeur', 'dateDemande', 'objet', 'decision'],
+    vehicules: ['demandeur', 'objet', 'decision'],
+    materiels: ['demandeur', 'objet', 'decision'],
     gestionVehicules: ['identifiant', 'type', 'etat'],
     gestionMateriels: ['identifiant', 'type', 'etat']
   };
   var PAGE_OPTIONAL_COLS = {
-    vehicules: ['quantite', 'commentaire', 'conflit'],
-    materiels: ['quantite', 'commentaire', 'conflit'],
-    gestionVehicules: ['commentaire'],
-    gestionMateriels: ['commentaire']
+    vehicules: ['quantite', 'conflit'],
+    materiels: ['quantite', 'conflit'],
+    gestionVehicules: [],
+    gestionMateriels: []
   };
   var PAGE_VALEURS_DEFAULT = {
     vehicules: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
@@ -938,6 +914,17 @@
     buildFilterMenu(pageKey, filterKey);
   }
 
+  // Vide en une fois tous les filtres actifs d'une page (bouton
+  // "Réinitialiser le filtre" de la barre d'outils) : équivalent à
+  // clearFilter() sur chaque filtre de la page, en un seul rendu.
+  function resetAllFilters(pageKey) {
+    FILTER_KEYS[pageKey].forEach(function (filterKey) {
+      activeFilters[pageKey][filterKey] = [];
+      updateFilterButtonLabel(pageKey, filterKey);
+    });
+    renderPage(pageKey);
+  }
+
   // Reconstruit le contenu d'un menu de filtre à choix multiple (une
   // case à cocher par valeur réellement rencontrée dans les données
   // chargées, comme getAllCadreNames() dans FSJ, mais avec des cases à
@@ -1046,9 +1033,12 @@
     return rows.some(function (r) { return !!textOf(r.conflit); });
   }
 
+  // Bouton "Réinitialiser le filtre" (ex-"Actualiser") de la barre
+  // d'outils de chaque page : l'id DOM (…RefreshBtn) est conservé tel
+  // quel, seuls son libellé/icône et son action ont changé.
   ALL_PAGES.forEach(function (pageKey) {
     var btn = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'RefreshBtn');
-    if (btn) btn.addEventListener('click', function () { loadPageData(pageKey); });
+    if (btn) btn.addEventListener('click', function () { resetAllFilters(pageKey); });
   });
 
   // ---- Zone "Configuration" (geste caché) --------------------------------
@@ -1561,15 +1551,10 @@
       return true;
     });
 
-    // Plus récentes en premier.
-    rows.sort(function (a, b) {
-      var da = parseGristDate(a.dateDemande);
-      var db = parseGristDate(b.dateDemande);
-      if (da && db) return db - da;
-      if (da) return -1;
-      if (db) return 1;
-      return 0;
-    });
+    // Plus récentes en premier (la colonne "Date de la demande" n'étant
+    // plus suivie par le widget, l'id de ligne — croissant à la création
+    // dans Grist — sert de repère chronologique).
+    rows.sort(function (a, b) { return b.id - a.id; });
 
     countEl.textContent = rows.length + ' demande(s) affichée(s) sur ' + all.length;
 
@@ -1583,18 +1568,14 @@
     }
 
     var hasQuantite = pageKey === 'materiels' && !!cfg.col.quantite;
-    var hasCommentaire = !!cfg.col.commentaire;
 
     // Largeurs proportionnées (en %) des colonnes, dans leur ordre
     // d'affichage — la colonne Décision (boutons de décision) est
     // placée en premier, pour rester visible même sur un panneau de
     // widget étroit, plutôt que de risquer d'être coupée tout à droite.
-    var colWidths = hasCommentaire
-      ? [16, 12, 16, 14, 23, 19]
-      : [18, 14, 19, 17, 32];
+    var colWidths = [18, 14, 19, 17, 32];
 
     var headCells = ['Gérer la demande', 'Demandeur', escapeHtml(objetLabel), 'Période souhaitée', 'Motif'];
-    if (hasCommentaire) headCells.push('Commentaire');
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
     }).join('') + '</tr>';
@@ -1627,7 +1608,7 @@
         '</div>';
 
       var objetCell = escapeHtml(objet) +
-        (conflitText ? ' <span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
+        (conflitText ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
 
       return '<tr data-row-id="' + r.id + '">' +
         '<td>' + actions + '</td>' +
@@ -1635,7 +1616,6 @@
         '<td>' + objetCell + '</td>' +
         '<td>' + escapeHtml(periode) + '</td>' +
         '<td>' + escapeHtml(textOf(r.motif)) + '</td>' +
-        (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
         '</tr>';
     }).join('');
 
@@ -1709,10 +1689,8 @@
       return;
     }
 
-    var hasCommentaire = !!cfg.col.commentaire;
-    var colWidths = hasCommentaire ? [26, 20, 18, 36] : [32, 24, 44];
+    var colWidths = [32, 24, 44];
     var headCells = ['Identifiant', escapeHtml(typeLabel), 'Disponibilité'];
-    if (hasCommentaire) headCells.push('Commentaire');
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
     }).join('') + '</tr>';
@@ -1733,7 +1711,6 @@
         '<span class="fr-badge fr-badge--sm ' + badgeClass + '">' + escapeHtml(etatDisplay) + '</span>' +
         '</button>' +
         '</td>' +
-        (hasCommentaire ? '<td>' + escapeHtml(textOf(r.commentaire)) + '</td>' : '') +
         '</tr>';
     }).join('');
 
@@ -1773,8 +1750,8 @@
   var NEW_REQUEST_LABELS = {
     demandeur: 'Demandeur',
     quantite: 'Quantité',
-    dateDebut: 'Date de début',
-    dateFin: 'Date de fin',
+    dateDebut: 'Date et heure de début',
+    dateFin: 'Date et heure de fin',
     motif: 'Motif'
   };
 
@@ -1850,9 +1827,12 @@
             '<input class="fr-input" type="number" min="1" step="1" id="' + inputId + '" data-role="' + role + '" data-kind="number" required></div>'
           ));
         } else if (role === 'dateDebut' || role === 'dateFin') {
+          // datetime-local (plutôt que date seul) : la période de réservation
+          // s'affiche désormais au format JJ/MM/AAAA HH:mm (voir fmtDate), la
+          // saisie à la création doit donc permettre de choisir l'heure aussi.
           fieldPromises.push(Promise.resolve(
             '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
-            '<input class="fr-input" type="date" id="' + inputId + '" data-role="' + role + '" data-kind="date" required></div>'
+            '<input class="fr-input" type="datetime-local" id="' + inputId + '" data-role="' + role + '" data-kind="date" required></div>'
           ));
         } else if (role === 'motif') {
           fieldPromises.push(Promise.resolve(
@@ -1870,13 +1850,26 @@
     });
   }
 
-  // Convertit une date "AAAA-MM-JJ" (valeur d'un <input type="date">) en
-  // horodatage Unix (secondes, minuit UTC) — même convention que les
-  // colonnes Date lues depuis Grist (voir parseGristDate ci-dessus).
+  // Convertit la valeur d'un champ <input type="datetime-local"> (format
+  // "AAAA-MM-JJTHH:mm", sans fuseau horaire — l'heure telle que saisie par
+  // l'utilisateur) en timestamp Unix (secondes). Construit un Date en heure
+  // locale (pas Date.UTC) : c'est cette même heure locale que fmtDate()
+  // réaffichera ensuite (via getHours()/getMinutes()), quel que soit le
+  // fuseau horaire du navigateur — l'aller-retour saisie → affichage reste
+  // donc cohérent. L'ancien format "AAAA-MM-JJ" (sans heure) reste accepté
+  // par compatibilité, avec l'heure alors à 00:00.
   function dateInputToTimestamp(value) {
-    var parts = value.split('-');
-    if (parts.length !== 3) return null;
-    var ms = Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(value || '');
+    if (!m) return null;
+    var d = new Date(
+      parseInt(m[1], 10),
+      parseInt(m[2], 10) - 1,
+      parseInt(m[3], 10),
+      m[4] ? parseInt(m[4], 10) : 0,
+      m[5] ? parseInt(m[5], 10) : 0,
+      0, 0
+    );
+    var ms = d.getTime();
     return isNaN(ms) ? null : Math.floor(ms / 1000);
   }
 
@@ -1895,7 +1888,6 @@
       if (!isWritableColId(cfg.col[role])) badField = NEW_REQUEST_LABELS[role] || role;
     });
     if (!badField && cfg.col.decision && !isWritableColId(cfg.col.decision)) badField = 'Décision';
-    if (!badField && cfg.col.dateDemande && !isWritableColId(cfg.col.dateDemande)) badField = 'Date de la demande';
     if (badField) {
       window.alert('Le champ « ' + badField + ' » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
         'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne pour ce champ, puis enregistrez.');
@@ -1914,7 +1906,6 @@
       fields[cfg.col[role]] = value;
     });
     if (cfg.col.decision) fields[cfg.col.decision] = cfg.valeurs.attente;
-    if (cfg.col.dateDemande) fields[cfg.col.dateDemande] = Math.floor(Date.now() / 1000);
 
     newRequestStatus.textContent = 'Enregistrement…';
     grist.docApi.applyUserActions([['AddRecord', cfg.table, null, fields]]).then(function () {

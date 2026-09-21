@@ -214,18 +214,32 @@
   .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: var(--statut-refusee); color: #fff; }
 
   /* Interrupteur Perçu/Réintégré (voir renderDemandePage) : une seule
-     icône affichée à la fois (celle de la prochaine action), teintée de
-     la couleur --statut-* de l'état RÉEL actuel (data-status, distinct de
-     data-action qui porte la prochaine action) — même langage visuel que
-     les boutons actifs à fond plein ci-dessus. Condensé en un seul
-     contrôle (interrupteur) puisque Perçu/Réintégré suit un enchaînement
-     obligé à sens unique (pas besoin d'accès direct aux deux états), mais
-     garde le même contour et la même forme carrée que les autres boutons
-     de la barre d'actions (fr-btn--tertiary, pas de pilule) plutôt qu'un
-     style à part. */
+     icône affichée à la fois (celle de l'état ACTUEL, voir
+     percuReintegreIcon), teintée de la couleur --statut-* de ce même état
+     réel (data-status, distinct de data-action qui porte la prochaine
+     action) — même langage visuel que les boutons actifs à fond plein
+     ci-dessus. Condensé en un seul contrôle (interrupteur) puisque Perçu/
+     Réintégré suit un enchaînement obligé à sens unique (pas besoin
+     d'accès direct aux deux états), mais garde le même contour et la
+     même forme carrée que les autres boutons de la barre d'actions
+     (fr-btn--tertiary, pas de pilule) plutôt qu'un style à part. */
   .req-switch[data-status="percu"] { background-color: var(--statut-percu); color: #fff; }
   .req-switch[data-status="reintegre"] { background-color: var(--statut-reintegre); color: #fff; }
   .req-switch:disabled { opacity: 0.5; }
+  /* Au survol, à l'état "Perçu" uniquement (donc quand Réintégré est la
+     prochaine action possible — voir canReintegrer), l'icône bascule sur
+     celle de Réintégré, en aperçu de l'action que le clic va déclencher.
+     Substitution directe de l'image (même fichier SVG que
+     fr-icon-arrow-down-line, servi par le même CDN/version DSFR que le
+     reste de la page — voir les <link> dans <head>) puisque l'icône
+     affichée par défaut sur ce bouton, à cet état, est celle de
+     fr-icon-arrow-up-line (Perçu). Pas d'effet à l'état "Réintégré" :
+     l'interrupteur y est désactivé (:not(:disabled), état final). */
+  .req-switch[data-status="percu"]:not(:disabled):hover:before,
+  .req-switch[data-status="percu"]:not(:disabled):hover:after {
+    -webkit-mask-image: url("https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/icons/arrows/arrow-down-line.svg");
+    mask-image: url("https://cdn.jsdelivr.net/npm/@gouvfr/dsfr@1.15.3/dist/icons/arrows/arrow-down-line.svg");
+  }
 
   .fr-table caption { text-align: left; font-weight: 700; }
 
@@ -378,6 +392,36 @@
     line-height: 1.3;
   }
   table.req-table th { font-size: 0.95em; }
+
+  /* ---- Fond pastel des lignes du tableau web (pages de demandes), à
+     l'instar des cartes mobiles ci-dessus (.req-card[data-status], mêmes
+     variables de couleur) : l'état de la demande se voit d'un coup d'œil
+     sans dépendre uniquement des boutons d'action. Scopé à
+     .req-table-view (le tableau des DEMANDES, voir renderDemandePage, pas
+     les cartes .req-cards-view en dessous de 40rem) pour ne pas toucher
+     les tableaux "Gérer le parc" : ceux-ci réutilisent la même classe
+     .req-table mais leurs propres statuts (Disponible/Indisponible),
+     uniquement transformés en cartes sous 40rem — voir plus bas dans la
+     règle @media, hors de portée de ce sélecteur. ---- */
+  .req-table-view tbody tr[data-status="validee"] { background-color: var(--uv-pastel-full); }
+  .req-table-view tbody tr[data-status="refusee"] { background-color: var(--uv-pastel-over); }
+  .req-table-view tbody tr[data-status="attente"] { background-color: var(--statut-pastel-attente); }
+  .req-table-view tbody tr[data-status="percu"] { background-color: var(--statut-pastel-percu); }
+  .req-table-view tbody tr[data-status="reintegre"] { background-color: var(--statut-pastel-reintegre); }
+  /* Boutons d'action "au repos" (ni en surbrillance/actif, ni l'inter-
+     rupteur Perçu/Réintégré déjà teinté par son propre statut ci-dessus) :
+     fond blanc translucide, pour qu'un bouton tertiaire (transparent par
+     défaut) reste bien visible une fois la ligne teintée, plutôt que de
+     se fondre dans le pastel — "Éditer" (jamais teinté) en profite aussi.
+     Les boutons déjà à fond plein (Valider/Refuser/Attente actifs,
+     interrupteur Perçu/Réintégré en surbrillance) restent inchangés : ils
+     contrastent déjà avec le pastel de la même famille de teinte. */
+  .req-table-view tbody tr[data-status] .req-actions .fr-btn:not([aria-pressed="true"]):not(.req-switch) {
+    background-color: rgba(255, 255, 255, 0.55);
+  }
+  .req-table-view tbody tr[data-status] .req-actions .req-switch:not([data-status="percu"]):not([data-status="reintegre"]) {
+    background-color: rgba(255, 255, 255, 0.55);
+  }
 
   /* ---- Vue mobile (écran étroit, en dessous de 40rem / ~640px) --------
      Le tableau des demandes / du parc, pensé pour défiler horizontale-
@@ -2338,10 +2382,17 @@
       // (pas encore validée, ou déjà réintégrée — état final).
       var percuReintegreAction = (!isPercu && canPercevoir) ? 'percu' : (canReintegrer ? 'reintegre' : null);
       var percuReintegreChecked = isReintegre; // teinte de l'interrupteur : "activé" une fois la ressource réintégrée
-      // Flèche vers le haut (ressource remise au demandeur, elle « sort »)
-      // pour Perçu, vers le bas (le demandeur nous la restitue, elle
-      // « rentre ») pour Réintégré.
-      var percuReintegreIcon = (percuReintegreAction === 'reintegre' || isReintegre) ? 'fr-icon-arrow-down-line' : 'fr-icon-arrow-up-line';
+      // Icône affichée par défaut : celle de l'état ACTUEL (pas de la
+      // prochaine action) — flèche vers le haut (Perçu, la ressource est
+      // remise au demandeur, elle « sort ») tant que la ressource n'est
+      // pas encore réintégrée (y compris à l'état "Perçu" lui-même),
+      // flèche vers le bas (Réintégré, le demandeur nous la restitue,
+      // elle « rentre ») une fois réintégrée. Au survol, l'icône bascule
+      // sur celle de la prochaine action possible (voir la règle CSS
+      // .req-switch[data-status="percu"]:hover, qui substitue l'icône
+      // Réintégré en aperçu) — sans effet une fois réintégrée, l'inter-
+      // rupteur étant alors désactivé (état final).
+      var percuReintegreIcon = isReintegre ? 'fr-icon-arrow-down-line' : 'fr-icon-arrow-up-line';
       var percuReintegreTitle = percuReintegreAction === 'percu' ? percuTitle
         : percuReintegreAction === 'reintegre' ? reintegreTitle
         : isReintegre ? 'Déjà réintégrée'

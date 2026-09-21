@@ -850,7 +850,7 @@
             <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
           </div>
         </div>
-        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Matériel demandé.</p>
+        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Matériel accordé (sous la ressource accordée, le cas échéant) si celle-ci est réglée, sinon dans la colonne Matériel demandé.</p>
         <p class="fr-hint-text fr-mt-2w">« Matériel accordé » : si réglée, une colonne dédiée s'affiche dans le tableau juste après « Matériel demandé », pour noter ce qui a réellement été remis (s'il diffère de la demande).</p>
         <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
         <div class="settings-grid">
@@ -2138,11 +2138,18 @@
       var statusKey = isValidee ? 'validee' : isRefusee ? 'refusee' : isPercu ? 'percu' : isReintegre ? 'reintegre' : 'attente';
 
       // Conflit détecté (case à cocher "Conflit" configurée et cochée pour
-      // cette demande) : signalé par un badge DSFR "Conflit" dans la
-      // colonne Véhicule/Matériel demandé (l'intitulé exact de la colonne
-      // dépend de la page, voir objetLabel), purement informatif — l'action
-      // Valider reste toujours disponible (elle n'est plus bloquée).
+      // cette demande) : signalé par un badge DSFR "Conflit", purement
+      // informatif — l'action Valider reste toujours disponible (elle
+      // n'est plus bloquée). Sur la page matériels, quand la colonne
+      // "Matériel accordé" est réglée, le badge est affiché dans cette
+      // colonne (sous la ressource accordée, le cas échéant) plutôt que
+      // dans "Matériel demandé", pour le rapprocher de la décision
+      // d'affectation ; sinon (page véhicules, ou matériels sans colonne
+      // "Matériel accordé" réglée), il reste dans la colonne
+      // Véhicule/Matériel demandé comme avant.
       var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
+      var conflitBadgeHtml = conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '';
+      var conflitInAccordeCol = isMateriels && hasMaterielAccorde;
 
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
@@ -2153,8 +2160,7 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 
-      var objetCell = escapeHtml(objet) +
-        (conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '');
+      var objetCell = escapeHtml(objet) + (conflitInAccordeCol ? '' : conflitBadgeHtml);
 
       // L'attribut data-label sur chaque <td> reprend l'intitulé de sa
       // colonne : en vue mobile (voir la règle CSS table.req-table sous
@@ -2162,7 +2168,7 @@
       // <thead> est masqué visuellement, et ce data-label sert alors
       // d'étiquette pour chaque cellule via ::before.
       var materielAccordeCell = hasMaterielAccorde
-        ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + '</td>'
+        ? '<td data-label="Matériel accordé">' + escapeHtml(textOf(r.materielAccorde)) + (conflitInAccordeCol ? conflitBadgeHtml : '') + '</td>'
         : '';
 
       var gererCell = '<td data-label="Gérer la demande">' + actions + '</td>';
@@ -2469,17 +2475,34 @@
       return;
     }
     var doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    // Format fixe (A4 paysage) : dimensions codées en dur plutôt que lues
+    // via doc.internal.pageSize, ce qui suffit puisque le format est déjà
+    // figé ci-dessus, et évite une dépendance à cette API pour les tests.
+    var PAGE_W = 297;
+    var PAGE_H = 210;
+    var TITLE_SIZE = 48; // pt — grand titre, occupe bien la page
+    var NAME_SIZE = 26; // pt
+    var TITLE_LINE_H = 22; // mm, hauteur de ligne approx. pour le titre
+    var NAME_LINE_H = 13; // mm, hauteur de ligne approx. par occupant
+    var GAP_TITLE_LIST = 16; // mm, espace entre le titre et la liste
     groups.forEach(function (g, i) {
       if (i > 0) doc.addPage('a4', 'landscape');
+      // Bloc (titre + liste des occupants) centré à la fois horizontalement
+      // (align: 'center' sur l'axe X = milieu de page) et verticalement
+      // (startY calculé pour que la hauteur totale du bloc soit centrée
+      // sur la hauteur de la page), pour occuper toute l'affiche plutôt
+      // qu'un petit bloc de texte casé en haut à gauche.
+      var blockHeight = TITLE_LINE_H + GAP_TITLE_LIST + g.occupants.length * NAME_LINE_H;
+      var startY = (PAGE_H - blockHeight) / 2 + TITLE_LINE_H * 0.75;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(24);
-      doc.text(g.uv, 20, 25);
+      doc.setFontSize(TITLE_SIZE);
+      doc.text(g.uv, PAGE_W / 2, startY, { align: 'center' });
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(14);
-      var y = 40;
+      doc.setFontSize(NAME_SIZE);
+      var y = startY + GAP_TITLE_LIST;
       g.occupants.forEach(function (name) {
-        doc.text(name, 20, y);
-        y += 8;
+        doc.text(name, PAGE_W / 2, y, { align: 'center' });
+        y += NAME_LINE_H;
       });
     });
     doc.save('affiches-hebergement.pdf');

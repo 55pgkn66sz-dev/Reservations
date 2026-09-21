@@ -334,8 +334,8 @@
         </button>
         <ul class="dropdown-menu__list" id="vehDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de véhicules par demandeur" hidden></ul>
       </div>
-      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
-        Réinitialiser le filtre
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="vehRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
       </button>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
         Actualiser
@@ -366,8 +366,8 @@
         </button>
         <ul class="dropdown-menu__list" id="matDemandeurFilterList" role="menu" aria-label="Filtrer les demandes de matériels par demandeur" hidden></ul>
       </div>
-      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="matRefreshBtn" type="button">
-        Réinitialiser le filtre
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="matRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
       </button>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
         Actualiser
@@ -421,8 +421,8 @@
           </button>
           <ul class="dropdown-menu__list" id="gvTypeFilterList" role="menu" aria-label="Filtrer les véhicules par type" hidden></ul>
         </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
-          Réinitialiser le filtre
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
+          Réinitialiser le(s) filtre(s)
         </button>
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
           Actualiser
@@ -448,8 +448,8 @@
           </button>
           <ul class="dropdown-menu__list" id="gmTypeFilterList" role="menu" aria-label="Filtrer le matériel par catégorie" hidden></ul>
         </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-filter-off-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
-          Réinitialiser le filtre
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
+          Réinitialiser le(s) filtre(s)
         </button>
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
           Actualiser
@@ -689,7 +689,7 @@
       <p class="fr-hint-text" id="newRequestStatus" aria-live="polite"></p>
       <div class="newreq-dialog__footer">
         <button class="fr-btn fr-btn--secondary" type="button" id="newRequestCancelBtn">Annuler</button>
-        <button class="fr-btn" type="submit">Créer la demande</button>
+        <button class="fr-btn" type="submit" id="newRequestSubmitBtn">Créer la demande</button>
       </div>
     </form>
   </div>
@@ -927,7 +927,7 @@
   }
 
   // Vide en une fois tous les filtres actifs d'une page (bouton
-  // "Réinitialiser le filtre" de la barre d'outils) : équivalent à
+  // "Réinitialiser le(s) filtre(s)" de la barre d'outils) : équivalent à
   // clearFilter() sur chaque filtre de la page, en un seul rendu.
   function resetAllFilters(pageKey) {
     FILTER_KEYS[pageKey].forEach(function (filterKey) {
@@ -1045,7 +1045,7 @@
     return rows.some(function (r) { return isConflitChecked(r.conflit); });
   }
 
-  // Bouton "Réinitialiser le filtre" (ex-"Actualiser") de la barre
+  // Bouton "Réinitialiser le(s) filtre(s)" (ex-"Actualiser") de la barre
   // d'outils de chaque page : l'id DOM (…RefreshBtn) est conservé tel
   // quel, seuls son libellé/icône et son action ont changé — il vide les
   // filtres actifs de la page plutôt que de recharger la table.
@@ -1642,6 +1642,7 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="Remettre en attente" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (isAttente ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-logout-box-r-line" title="Perçu" data-action="percu" aria-pressed="' + (isPercu ? 'true' : 'false') + '" ' + (isPercu ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-inbox-archive-line" title="Réintégré" data-action="reintegre" aria-pressed="' + (isReintegre ? 'true' : 'false') + '" ' + (isReintegre ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 
       var objetCell = escapeHtml(objet) +
@@ -1669,7 +1670,12 @@
       btn.addEventListener('click', function () {
         var tr = btn.closest('tr[data-row-id]');
         var rowId = Number(tr.getAttribute('data-row-id'));
-        var target = cfg.valeurs[btn.getAttribute('data-action')];
+        var action = btn.getAttribute('data-action');
+        if (action === 'edit') {
+          openEditRequestModal(pageKey, rowId);
+          return;
+        }
+        var target = cfg.valeurs[action];
         updateDecision(pageKey, rowId, target);
       });
     });
@@ -1797,11 +1803,17 @@
   var newRequestBody = document.getElementById('newRequestBody');
   var newRequestStatus = document.getElementById('newRequestStatus');
   var newRequestTitle = document.getElementById('newRequestTitle');
+  var newRequestSubmitBtn = document.getElementById('newRequestSubmitBtn');
   var currentNewRequestPage = null;
+  // null en création ; l'id de la ligne éditée en modification — c'est ce
+  // qui distingue les deux modes du même formulaire/modale partagés (voir
+  // openNewRequestModal / openEditRequestModal et submitNewRequest).
+  var currentNewRequestRowId = null;
 
   function closeNewRequestModal() {
     newRequestOverlay.hidden = true;
     currentNewRequestPage = null;
+    currentNewRequestRowId = null;
     newRequestForm.reset();
     newRequestStatus.textContent = '';
   }
@@ -1813,17 +1825,109 @@
       return;
     }
     currentNewRequestPage = pageKey;
+    currentNewRequestRowId = null;
     var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
     newRequestTitle.textContent = pageKey === 'vehicules'
       ? 'Nouvelle demande de réservation de véhicule'
       : 'Nouvelle demande de réservation de matériel';
+    newRequestSubmitBtn.textContent = 'Créer la demande';
     newRequestStatus.textContent = '';
     newRequestBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
     newRequestOverlay.hidden = false;
     buildNewRequestForm(pageKey, cfg, objetLabel).then(function (html) {
-      if (currentNewRequestPage !== pageKey) return; // fermé entre-temps
+      if (currentNewRequestPage !== pageKey || currentNewRequestRowId !== null) return; // fermé/changé entre-temps
       newRequestBody.innerHTML = html;
     });
+  }
+
+  // Ouvre la même modale que "Nouvelle demande", pré-remplie avec les
+  // valeurs actuelles de la ligne (bouton "Éditer la demande" de chaque
+  // page de demandes) ; la soumission fera un UpdateRecord sur cette
+  // ligne au lieu d'un AddRecord (voir submitNewRequest).
+  function openEditRequestModal(pageKey, rowId) {
+    var cfg = settings[pageKey];
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant de modifier une demande.');
+      return;
+    }
+    currentNewRequestPage = pageKey;
+    currentNewRequestRowId = rowId;
+    var objetLabel = pageKey === 'vehicules' ? 'Véhicule demandé' : 'Matériel demandé';
+    newRequestTitle.textContent = pageKey === 'vehicules'
+      ? 'Modifier la demande de réservation de véhicule'
+      : 'Modifier la demande de réservation de matériel';
+    newRequestSubmitBtn.textContent = 'Enregistrer les modifications';
+    newRequestStatus.textContent = '';
+    newRequestBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
+    newRequestOverlay.hidden = false;
+    Promise.all([buildNewRequestForm(pageKey, cfg, objetLabel), fetchRawRow(pageKey, rowId)]).then(function (results) {
+      if (currentNewRequestPage !== pageKey || currentNewRequestRowId !== rowId) return; // fermé/changé entre-temps
+      var html = results[0];
+      var rawRow = results[1];
+      newRequestBody.innerHTML = html;
+      if (rawRow) {
+        fillFormFromRawRow(rawRow);
+      } else {
+        newRequestStatus.textContent = '';
+        window.alert('Cette demande est introuvable (peut-être supprimée entre-temps) : impossible de la modifier.');
+        closeNewRequestModal();
+      }
+    });
+  }
+
+  // Relit la ligne directement depuis Grist (plutôt que pageData, déjà
+  // résolu en texte d'affichage pour les colonnes Référence par
+  // resolveReferenceColumns) pour récupérer les valeurs BRUTES — l'id
+  // numérique pour un champ Référence, l'horodatage Unix pour une date —
+  // nécessaires pour pré-remplir le formulaire (un <select> Référence a
+  // pour valeurs d'options des ids, pas le texte affiché).
+  function fetchRawRow(pageKey, rowId) {
+    var cfg = settings[pageKey];
+    return grist.docApi.fetchTable(cfg.table).then(function (data) {
+      if (!data || !data.id) return null;
+      var idx = data.id.indexOf(rowId);
+      if (idx === -1) return null;
+      var row = {};
+      PAGE_ROLES[pageKey].forEach(function (role) {
+        var colId = cfg.col[role];
+        if (colId && data[colId]) row[role] = data[colId][idx];
+      });
+      return row;
+    }).catch(function () { return null; });
+  }
+
+  // Pré-remplit les champs du formulaire (déjà construits par
+  // buildNewRequestForm) à partir des valeurs brutes d'une ligne
+  // existante — inverse de la lecture faite dans submitNewRequest.
+  function fillFormFromRawRow(rawRow) {
+    var inputs = newRequestForm.querySelectorAll('[data-role]');
+    inputs.forEach(function (el) {
+      var role = el.getAttribute('data-role');
+      if (!Object.prototype.hasOwnProperty.call(rawRow, role)) return;
+      var raw = rawRow[role];
+      var kind = el.getAttribute('data-kind');
+      if (kind === 'date') {
+        el.value = timestampToDateInputValue(raw);
+      } else if (raw === null || raw === undefined) {
+        el.value = '';
+      } else {
+        el.value = String(raw);
+      }
+    });
+  }
+
+  // Inverse de dateInputToTimestamp : un horodatage Unix (secondes) vers
+  // la chaîne "AAAA-MM-JJTHH:mm" attendue par un <input type="datetime-
+  // local">, construite à partir des mêmes composantes d'heure LOCALE
+  // (getFullYear/getHours…) que dateInputToTimestamp utilise pour créer
+  // le Date correspondant — l'aller-retour édition → sauvegarde reste
+  // donc cohérent quel que soit le fuseau horaire du navigateur.
+  function timestampToDateInputValue(v) {
+    if (v === null || v === undefined || v === '') return '';
+    var d = (typeof v === 'number') ? new Date(v * 1000) : null;
+    if (!d || isNaN(d.getTime())) return '';
+    var pad = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
   // Construit les champs du formulaire, dans l'ordre de NEW_REQUEST_ROLES,
@@ -1912,6 +2016,7 @@
 
   function submitNewRequest(pageKey) {
     var cfg = settings[pageKey];
+    var isEdit = currentNewRequestRowId !== null;
 
     // Ultime filet de sécurité (voir isWritableColId ci-dessus) : si un
     // rôle utilisé par ce formulaire pointe malgré tout vers une colonne
@@ -1924,7 +2029,10 @@
       var role = el.getAttribute('data-role');
       if (!isWritableColId(cfg.col[role])) badField = NEW_REQUEST_LABELS[role] || role;
     });
-    if (!badField && cfg.col.decision && !isWritableColId(cfg.col.decision)) badField = 'Décision';
+    // La Décision n'est forcée à "attente" qu'à la création (voir plus
+    // bas) : en modification, on ne touche pas à ce champ, donc pas
+    // besoin de vérifier qu'il est éditable ici.
+    if (!isEdit && !badField && cfg.col.decision && !isWritableColId(cfg.col.decision)) badField = 'Décision';
     if (badField) {
       window.alert('Le champ « ' + badField + ' » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
         'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne pour ce champ, puis enregistrez.');
@@ -1942,15 +2050,21 @@
       else if (kind === 'date') value = raw ? dateInputToTimestamp(raw) : null;
       fields[cfg.col[role]] = value;
     });
-    if (cfg.col.decision) fields[cfg.col.decision] = cfg.valeurs.attente;
+    // Une demande créée démarre toujours "en attente" ; en modification,
+    // la Décision existante (Validée, Perçu…) n'est jamais réécrite ici.
+    if (!isEdit && cfg.col.decision) fields[cfg.col.decision] = cfg.valeurs.attente;
+
+    var action = isEdit
+      ? ['UpdateRecord', cfg.table, currentNewRequestRowId, fields]
+      : ['AddRecord', cfg.table, null, fields];
 
     newRequestStatus.textContent = 'Enregistrement…';
-    grist.docApi.applyUserActions([['AddRecord', cfg.table, null, fields]]).then(function () {
+    grist.docApi.applyUserActions([action]).then(function () {
       closeNewRequestModal();
       loadPageData(pageKey);
     }).catch(function (e) {
       newRequestStatus.textContent = '';
-      window.alert('Impossible de créer la demande : ' + (e && e.message ? e.message : e));
+      window.alert((isEdit ? 'Impossible d’enregistrer les modifications : ' : 'Impossible de créer la demande : ') + (e && e.message ? e.message : e));
     });
   }
 

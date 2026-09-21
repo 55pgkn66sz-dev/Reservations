@@ -447,6 +447,10 @@
       color: var(--text-mention-grey);
       margin-bottom: 0.2rem;
     }
+    /* Nom du demandeur mis en avant (en gras) une fois la ligne transformée
+       en carte — texte normal en tableau classique (écran large), voir
+       renderDemandePage. */
+    table.req-table td[data-label="Demandeur"] { font-weight: 700; }
 
     /* Fenêtre modale "Nouvelle demande" / "Modifier la demande" : plutôt
        qu'une boîte centrée avec des marges tout autour (peu naturel au
@@ -2350,16 +2354,19 @@
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 
-      // Tableau classique en écran large ; en dessous de 40rem (voir le CSS
-      // table.req-table dans la règle @media plus bas), chaque <tr> devient
-      // une carte grâce à l'attribut data-label posé sur chaque <td> — même
-      // mécanisme que les pages "Gérer le parc". Le nom du demandeur est mis
-      // en avant (en gras) dans les deux vues. Le badge "Conflit" (voir plus
-      // haut) reste accolé à la ressource sollicitée, ou au matériel accordé
-      // quand cette colonne remplace la ressource sollicitée dans la
-      // décision d'affectation (conflitInAccordeCol).
+      // Tableau classique en écran large (texte normal, comme avant) ; en
+      // dessous de 40rem (voir le CSS table.req-table dans la règle @media
+      // plus bas), chaque <tr> devient une carte grâce à l'attribut
+      // data-label posé sur chaque <td> — même mécanisme que les pages
+      // "Gérer le parc". Le nom du demandeur n'est mis en avant (en gras)
+      // qu'une fois transformé en carte (voir la règle @media, pas ici) :
+      // le HTML de la cellule reste du texte normal dans les deux cas. Le
+      // badge "Conflit" (voir plus haut) reste accolé à la ressource
+      // sollicitée, ou au matériel accordé quand cette colonne remplace la
+      // ressource sollicitée dans la décision d'affectation
+      // (conflitInAccordeCol).
       var demandeurValue = hasDemandeurCol ? (textOfRef(r.demandeur) || 'AE') : textOfRef(r.demandeur);
-      var demandeurCell = '<td data-label="Demandeur"><strong>' + escapeHtml(demandeurValue) + '</strong></td>';
+      var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(demandeurValue) + '</td>';
       var objetCell = '<td data-label="' + escapeHtml(objetSoliciteLabel) + '">' + escapeHtml(objet) + (conflitInAccordeCol ? '' : conflitBadgeHtml) + '</td>';
       var periodeCell = '<td data-label="Période">' + escapeHtml(fmtDate(r.dateDebut)) + ' → ' + escapeHtml(fmtDate(r.dateFin)) + '</td>';
       var motifCell = '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>';

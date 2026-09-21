@@ -818,6 +818,12 @@
     gestionVehicules: ['etat', 'type'],
     gestionMateriels: ['etat', 'type']
   };
+  // Valeur pseudo-décision proposée dans le filtre "Etat" des pages de
+  // demandes, en plus des vraies valeurs de la colonne Décision : coche
+  // toute demande dont la colonne Conflit (si réglée) est renseignée,
+  // quelle que soit sa décision — combinée en OU avec les autres cases
+  // cochées du même filtre, comme les autres valeurs.
+  var CONFLIT_FILTER_VALUE = 'Conflit';
   var filterFieldLabels = {
     vehicules: { decision: 'Etat', demandeur: 'Demandeur' },
     materiels: { decision: 'Etat', demandeur: 'Demandeur' },
@@ -999,103 +1005,15 @@
     }
 
     var values = getAllFieldValues(pageKey, filterKey);
-    if (!values.length) {
+    var showConflitOption = filterKey === 'decision' && isConflitFilterAvailable(pageKey);
+    if (!values.length && !showConflitOption) {
       addSection('(aucune donnée chargée)');
     } else {
       values.forEach(addCheckbox);
-    }
-  }
-
-  // Coche/décoche une valeur pour ce filtre (sélection multiple : chaque
-  // case cochée s'ajoute aux autres, en OU) et met à jour le tableau
-  // aussitôt — sans fermer le menu, pour pouvoir en cocher plusieurs à
-  // la suite.
-  function toggleFilterValue(pageKey, filterKey, value) {
-    var selected = activeFilters[pageKey][filterKey];
-    var idx = selected.indexOf(value);
-    if (idx === -1) selected.push(value); else selected.splice(idx, 1);
-    updateFilterButtonLabel(pageKey, filterKey);
-    renderPage(pageKey);
-  }
-
-  function clearFilter(pageKey, filterKey) {
-    activeFilters[pageKey][filterKey] = [];
-    updateFilterButtonLabel(pageKey, filterKey);
-    renderPage(pageKey);
-    buildFilterMenu(pageKey, filterKey);
-  }
-
-  // Reconstruit le contenu d'un menu de filtre à choix multiple (une
-  // case à cocher par valeur réellement rencontrée dans les données
-  // chargées, comme getAllCadreNames() dans FSJ, mais avec des cases à
-  // cocher plutôt qu'un choix unique) : appelé juste avant chaque
-  // ouverture, pour refléter l'état courant des données.
-  function buildFilterMenu(pageKey, filterKey) {
-    var list = filterEls[pageKey][filterKey].list;
-    list.innerHTML = '';
-    var selected = activeFilters[pageKey][filterKey];
-
-    function addAction(text, onClick) {
-      var li = document.createElement('li');
-      li.setAttribute('role', 'none');
-      var btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'dropdown-menu__item';
-      btn.setAttribute('role', 'menuitem');
-      btn.textContent = text;
-      btn.addEventListener('click', onClick);
-      li.appendChild(btn);
-      list.appendChild(li);
-    }
-    function addCheckbox(value) {
-      var li = document.createElement('li');
-      li.setAttribute('role', 'none');
-      var label = document.createElement('label');
-      label.className = 'dropdown-menu__item dropdown-menu__item--checkbox';
-      var isChecked = selected.indexOf(value) !== -1;
-      if (isChecked) label.classList.add('dropdown-menu__item--checked');
-      var checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.checked = isChecked;
-      checkbox.addEventListener('change', function () {
-        label.classList.toggle('dropdown-menu__item--checked', checkbox.checked);
-        toggleFilterValue(pageKey, filterKey, value);
-      });
-      var span = document.createElement('span');
-      span.textContent = value;
-      label.appendChild(checkbox);
-      label.appendChild(span);
-      li.appendChild(label);
-      list.appendChild(li);
-    }
-    function addSection(label) {
-      var li = document.createElement('li');
-      li.setAttribute('role', 'none');
-      var p = document.createElement('p');
-      p.className = 'dropdown-menu__section';
-      p.textContent = label;
-      li.appendChild(p);
-      list.appendChild(li);
-    }
-    function addDivider() {
-      var li = document.createElement('li');
-      li.setAttribute('role', 'none');
-      var hr = document.createElement('hr');
-      hr.className = 'dropdown-menu__divider';
-      li.appendChild(hr);
-      list.appendChild(li);
-    }
-
-    if (selected.length) {
-      addAction('Tout désélectionner', function () { clearFilter(pageKey, filterKey); });
-      addDivider();
-    }
-
-    var values = getAllFieldValues(pageKey, filterKey);
-    if (!values.length) {
-      addSection('(aucune donnée chargée)');
-    } else {
-      values.forEach(addCheckbox);
+      if (showConflitOption) {
+        if (values.length) addDivider();
+        addCheckbox(CONFLIT_FILTER_VALUE);
+      }
     }
   }
 
@@ -1114,6 +1032,18 @@
     });
     out.sort(function (a, b) { return a.localeCompare(b, 'fr'); });
     return out;
+  }
+
+  // Le filtre "Etat" propose l'option pseudo-décision "Conflit" (voir
+  // CONFLIT_FILTER_VALUE) uniquement si une colonne Conflit est réglée
+  // pour cette page ET qu'au moins une demande chargée y a un texte non
+  // vide — comme les autres valeurs du filtre, elle ne propose que ce qui
+  // est réellement rencontré dans les données.
+  function isConflitFilterAvailable(pageKey) {
+    var cfg = settings[pageKey];
+    if (!cfg || !cfg.col || !cfg.col.conflit) return false;
+    var rows = (pageData[pageKey] && pageData[pageKey].rows) || [];
+    return rows.some(function (r) { return !!textOf(r.conflit); });
   }
 
   ALL_PAGES.forEach(function (pageKey) {
@@ -1541,7 +1471,9 @@
     if (!d) return textOf(value);
     var dd = String(d.getDate()).padStart(2, '0');
     var mm = String(d.getMonth() + 1).padStart(2, '0');
-    return dd + '/' + mm + '/' + d.getFullYear();
+    var hh = String(d.getHours()).padStart(2, '0');
+    var min = String(d.getMinutes()).padStart(2, '0');
+    return dd + '/' + mm + '/' + d.getFullYear() + ' ' + hh + ':' + min;
   }
 
   function updateDecision(pageKey, rowId, newValue) {
@@ -1618,8 +1550,13 @@
 
     var all = pageData[pageKey].rows;
     var filters = activeFilters[pageKey];
+    var hasConflitColForFilter = !!cfg.col.conflit;
     var rows = all.filter(function (r) {
-      if (filters.decision.length && filters.decision.indexOf(textOf(r.decision)) === -1) return false;
+      if (filters.decision.length) {
+        var matchesDecision = filters.decision.indexOf(textOf(r.decision)) !== -1;
+        var matchesConflit = hasConflitColForFilter && filters.decision.indexOf(CONFLIT_FILTER_VALUE) !== -1 && !!textOf(r.conflit);
+        if (!matchesDecision && !matchesConflit) return false;
+      }
       if (filters.demandeur.length && filters.demandeur.indexOf(textOf(r.demandeur)) === -1) return false;
       return true;
     });

@@ -56,6 +56,15 @@
     --uv-pastel-alone: #fdead2;
     --uv-pastel-full: #e0f3e4;
     --uv-pastel-over: #fbe1e0;
+    /* Fonds pastel des cartes de demande en vue mobile (voir plus bas,
+       table.req-table tbody tr sous 40rem) : même principe que les fonds
+       pastel des cartes UV ci-dessus, décliné pour chaque --statut-*.
+       Réutilise volontairement --uv-pastel-full (vert) pour "validée"/
+       "disponible" et --uv-pastel-over (rouge) pour "refusée"/
+       "indisponible", pour une palette cohérente dans tout le widget. */
+    --statut-pastel-attente: #fff6d6;
+    --statut-pastel-percu: #e3e3f7;
+    --statut-pastel-reintegre: #daf2f2;
   }
   html, body { margin: 0; padding: 0; }
   .widget-wrap { padding: 1.5rem 1.25rem; width: 100%; box-sizing: border-box; }
@@ -181,29 +190,39 @@
   .req-actions { display: flex; flex-wrap: wrap; gap: 0.25rem; }
   .req-actions .fr-btn { white-space: nowrap; }
 
-  /* Met en évidence le bouton "Remettre en attente" quand la demande est
-     actuellement à cet état (fond plein coloré, au lieu du simple style
-     tertiaire) — plutôt qu'une colonne Décision séparée, l'état se lit
-     directement sur le bouton actif. Les autres états (Validée/Refusée,
-     Perçu/Réintégré) sont désormais portés par les interrupteurs
-     .req-switch ci-dessous plutôt que par des boutons séparés. */
+  /* Met en évidence le bouton actif (fond plein coloré, au lieu du simple
+     style tertiaire) quand la demande est actuellement à cet état —
+     plutôt qu'une colonne Décision séparée, l'état se lit directement sur
+     le(s) bouton(s) actif(s). "Remettre en attente" et le contrôle
+     segmenté Valider/Refuser (2 boutons fr-btn, voir plus bas) suivent ce
+     principe ; seul Perçu/Réintégré reste porté par un interrupteur
+     .req-switch (un seul état possible à la fois, contrairement à
+     Validée/Refusée où l'on veut un accès direct aux deux). */
   .req-actions .fr-btn[aria-pressed="true"] {
     color: #fff;
   }
   .req-actions .fr-btn[data-action="attente"][aria-pressed="true"] { background-color: var(--statut-attente); color: #3a3a3a; }
 
-  /* Interrupteurs Validée/Refusée et Perçu/Réintégré (voir renderDemandePage) :
-     une seule icône affichée à la fois (celle de la prochaine action),
-     teintée de la couleur --statut-* de l'état RÉEL actuel (data-status,
-     distinct de data-action qui porte la prochaine action) — même langage
-     visuel que l'ancien bouton actif à fond plein, condensé en un seul
-     contrôle en forme de pilule (interrupteur). */
-  .req-switch {
-    border-radius: 999px;
-  }
-  .req-switch[data-status="validee"] { background-color: var(--statut-validee); color: #fff; }
-  .req-switch[data-status="refusee"] { background-color: var(--statut-refusee); color: #fff; }
-  .req-switch[data-status="attente"] { background-color: var(--statut-attente); color: #3a3a3a; }
+  /* Contrôle segmenté Valider/Refuser : deux icônes indépendantes plutôt
+     qu'un interrupteur à une seule icône (voir decisionSwitchAction dans
+     l'historique) — accès direct à chacun des deux états en un clic,
+     contrepartie : occupe une icône de plus dans la barre d'actions. Le
+     bouton correspondant à l'état actuel est mis en évidence (fond plein
+     coloré, via aria-pressed) et désactivé (on ne "dévalide" pas en
+     recliquant dessus ; "Remettre en attente" sert à ça). */
+  .req-actions .fr-btn[data-action="validee"][aria-pressed="true"] { background-color: var(--statut-validee); color: #fff; }
+  .req-actions .fr-btn[data-action="refusee"][aria-pressed="true"] { background-color: var(--statut-refusee); color: #fff; }
+
+  /* Interrupteur Perçu/Réintégré (voir renderDemandePage) : une seule
+     icône affichée à la fois (celle de la prochaine action), teintée de
+     la couleur --statut-* de l'état RÉEL actuel (data-status, distinct de
+     data-action qui porte la prochaine action) — même langage visuel que
+     les boutons actifs à fond plein ci-dessus. Condensé en un seul
+     contrôle (interrupteur) puisque Perçu/Réintégré suit un enchaînement
+     obligé à sens unique (pas besoin d'accès direct aux deux états), mais
+     garde le même contour et la même forme carrée que les autres boutons
+     de la barre d'actions (fr-btn--tertiary, pas de pilule) plutôt qu'un
+     style à part. */
   .req-switch[data-status="percu"] { background-color: var(--statut-percu); color: #fff; }
   .req-switch[data-status="reintegre"] { background-color: var(--statut-reintegre); color: #fff; }
   .req-switch:disabled { opacity: 0.5; }
@@ -368,30 +387,33 @@
       padding: 0;
       margin: -1px;
     }
-    /* Chaque ligne devient une carte : coins arrondis, ombre légère
-       plutôt qu'un simple filet, et un liseré de couleur à gauche qui
-       reprend la couleur de l'état actuel de la demande (voir les
-       variables --statut-* et l'attribut data-status posé côté JS dans
-       renderDemandePage / renderGestionPage) — un repère visuel
-       immédiat, sans avoir à lire le libellé. */
+    /* Chaque ligne devient une carte, sur le même principe que les cartes
+       UV (.uv-card ci-dessus) : mêmes coins arrondis (0.5rem), pas
+       d'ombre, un fond pastel qui reprend l'état actuel de la demande
+       (voir les variables --statut-pastel-* et --uv-pastel-*, et
+       l'attribut data-status posé côté JS dans renderDemandePage /
+       renderGestionPage) — un repère visuel immédiat, sans avoir à lire
+       le libellé. Le liseré de couleur à gauche (--statut-* pleine
+       teinte) vient en plus, pour rester repérable même en cas de fond
+       pastel proche d'un autre (ex. distinguer "Perçu"/bleu de
+       "Réintégré"/turquoise d'un coup d'œil). */
     table.req-table tbody tr {
       display: block;
       background: #fff;
       border: 1px solid var(--border-default-grey);
       border-left: 0.25rem solid var(--statut-attente);
-      border-radius: 0.65rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      border-radius: 0.5rem;
       overflow: hidden; /* pour que le bandeau d'actions (voir plus bas) épouse les coins arrondis de la carte */
       margin-bottom: 1rem;
     }
     table.req-table tbody tr:last-child { margin-bottom: 0; }
     table.req-table tbody tr[data-status="validee"],
-    table.req-table tbody tr[data-status="disponible"] { border-left-color: var(--statut-validee); }
+    table.req-table tbody tr[data-status="disponible"] { border-left-color: var(--statut-validee); background: var(--uv-pastel-full); }
     table.req-table tbody tr[data-status="refusee"],
-    table.req-table tbody tr[data-status="indisponible"] { border-left-color: var(--statut-refusee); }
-    table.req-table tbody tr[data-status="attente"] { border-left-color: var(--statut-attente); }
-    table.req-table tbody tr[data-status="percu"] { border-left-color: var(--statut-percu); }
-    table.req-table tbody tr[data-status="reintegre"] { border-left-color: var(--statut-reintegre); }
+    table.req-table tbody tr[data-status="indisponible"] { border-left-color: var(--statut-refusee); background: var(--uv-pastel-over); }
+    table.req-table tbody tr[data-status="attente"] { border-left-color: var(--statut-attente); background: var(--statut-pastel-attente); }
+    table.req-table tbody tr[data-status="percu"] { border-left-color: var(--statut-percu); background: var(--statut-pastel-percu); }
+    table.req-table tbody tr[data-status="reintegre"] { border-left-color: var(--statut-reintegre); background: var(--statut-pastel-reintegre); }
 
     table.req-table td {
       display: block;
@@ -401,11 +423,14 @@
     }
     /* Bandeau d'actions "Gérer la demande" (première cellule des cartes
        de demande) : traité comme un en-tête de carte plutôt que comme un
-       champ parmi d'autres — fond légèrement teinté, boutons plus
-       grands (cibles tactiles), pas d'étiquette au-dessus (les icônes +
-       l'infobulle de chaque bouton suffisent à les identifier). */
+       champ parmi d'autres — léger voile sombre semi-transparent (plutôt
+       qu'un gris plein) pour rester lisible quel que soit le fond pastel
+       de la carte (voir table.req-table tbody tr[data-status] ci-dessus),
+       boutons plus grands (cibles tactiles), pas d'étiquette au-dessus
+       (les icônes + l'infobulle de chaque bouton suffisent à les
+       identifier). */
     table.req-table td[data-label="Gérer la demande"] {
-      background: var(--background-alt-grey, #f6f6f6);
+      background: rgba(0, 0, 0, 0.05);
       border-bottom: 1px solid var(--border-default-grey);
       padding: 0.55rem 1rem;
     }
@@ -2232,17 +2257,17 @@
       var attenteTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Remettre en attente';
       var canAttente = !isAttente && !decisionLockedByPercu;
 
-      // Interrupteur Validée/Refusée (remplace les 2 boutons séparés) :
-      // une seule icône affichée à la fois, celle de la PROCHAINE action
-      // (Valider tant que non validée — y compris depuis "En attente" ou
-      // "Refusée" —, Refuser une fois validée). Revenir à "Refusée" une
-      // fois qu'on est passé par "Validée" prend donc 2 clics (Valider
-      // d'abord si besoin, puis Refuser) plutôt qu'un accès direct : c'est
-      // la contrepartie du format interrupteur (un seul état exposé à la
-      // fois) par rapport à 2 boutons indépendants.
-      var decisionSwitchAction = isValidee ? 'refusee' : 'validee';
-      var decisionSwitchIcon = decisionSwitchAction === 'validee' ? 'fr-icon-check-line' : 'fr-icon-close-line';
-      var decisionSwitchTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : (decisionSwitchAction === 'validee' ? 'Valider' : 'Refuser');
+      // Contrôle segmenté Valider/Refuser : 2 boutons indépendants (au
+      // lieu d'un interrupteur à une seule icône) pour un accès direct à
+      // chacun des deux états en un clic — voir le CSS .req-actions
+      // .fr-btn[data-action="validee"/"refusee"][aria-pressed="true"].
+      // Chacun est désactivé quand il correspond déjà à l'état actuel
+      // (comme "Remettre en attente" l'est déjà quand isAttente), ou
+      // quand la ressource a été "Perçue" (décision verrouillée).
+      var valideeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Valider';
+      var refuseeTitle = decisionLockedByPercu ? 'La ressource a déjà été perçue' : 'Refuser';
+      var canValider = !isValidee && !decisionLockedByPercu;
+      var canRefuser = !isRefusee && !decisionLockedByPercu;
 
       // Posé sur la <tr> comme attribut data-status : sert uniquement au
       // liseré de couleur des cartes en vue mobile (voir la règle CSS
@@ -2268,13 +2293,13 @@
       // action) reflète l'état actuel réel : sert uniquement à teinter
       // l'interrupteur avec la même couleur --statut-* que l'ancien
       // bouton actif correspondant (voir CSS .req-switch[data-status]).
-      var decisionSwitchStatus = isValidee ? 'validee' : isRefusee ? 'refusee' : 'attente';
       var percuSwitchStatus = isPercu ? 'percu' : isReintegre ? 'reintegre' : '';
 
       var actions = '<div class="req-actions" role="group" aria-label="Actions">' +
-        '<button type="button" role="switch" class="req-switch req-switch--decision fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + decisionSwitchIcon + '" title="' + escapeHtml(decisionSwitchTitle) + '" data-action="' + decisionSwitchAction + '" data-status="' + decisionSwitchStatus + '" aria-checked="' + (isValidee ? 'true' : 'false') + '" ' + (decisionLockedByPercu ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
-        '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
+        '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>' +
         '</div>';
 

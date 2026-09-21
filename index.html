@@ -216,12 +216,16 @@
     padding-bottom: 2.75rem;
   }
   /* Icône de téléchargement de l'affiche de cette seule UV (voir
-     generateSingleUvPdf), en bas à droite de la carte. */
+     generateSingleUvPdf), en bas à droite de la carte. fr-btn--tertiary-
+     no-outline retire déjà le contour DSFR ; box-shadow/border à none en
+     complément, au cas où. */
   .uv-card__download {
     position: absolute;
     right: 0.5rem;
     bottom: 0.5rem;
     background: transparent;
+    box-shadow: none;
+    border: none;
   }
   /* Fond pastel selon l'occupation (voir occupancyStatusOf) : orange
      "seul en chambre", vert "complet" (occupants = capacité), rouge
@@ -2149,7 +2153,10 @@
 
     var body = rows.map(function (r) {
       var objet = textOf(r.objet) + (hasQuantite && textOf(r.quantite) ? ' (x' + textOf(r.quantite) + ')' : '');
-      var periode = fmtDate(r.dateDebut) + ' → ' + fmtDate(r.dateFin);
+      // Date de début, puis retour à la ligne, puis "→ date de fin" (au
+      // lieu d'une seule ligne "début → fin") : plus lisible dans une
+      // colonne étroite, voir periodeCell ci-dessous.
+      var periode = escapeHtml(fmtDate(r.dateDebut)) + '<br>→ ' + escapeHtml(fmtDate(r.dateFin));
       var decisionText = textOf(r.decision);
 
       var isValidee = normalizeKey(decisionText) === normalizeKey(cfg.valeurs.validee);
@@ -2224,7 +2231,7 @@
       var gererCell = '<td data-label="Gérer la demande">' + actions + '</td>';
       var demandeurCell = '<td data-label="Demandeur">' + escapeHtml(textOf(r.demandeur)) + '</td>';
       var objetCellFull = '<td data-label="' + escapeHtml(objetLabel) + '">' + objetCell + '</td>';
-      var periodeCell = '<td data-label="Période souhaitée">' + escapeHtml(periode) + '</td>';
+      var periodeCell = '<td data-label="Période souhaitée">' + periode + '</td>';
       var motifCell = '<td data-label="Motif">' + escapeHtml(textOf(r.motif)) + '</td>';
 
       // Sur la page matériels : Période souhaitée avant Matériel demandé
@@ -2504,7 +2511,7 @@
       // une UV sans aucun occupant, comme pour l'export groupé (rien à
       // imprimer sur cette affiche de toute façon).
       var downloadBtn = g.occupants.length
-        ? '<button type="button" class="uv-card__download fr-btn fr-btn--tertiary fr-btn--sm fr-icon-download-line" data-action="download-single" title="Télécharger l’affiche de cette UV seule" aria-label="Télécharger l’affiche de ' + escapeHtml(formatUvTitle(g.uv)) + '"></button>'
+        ? '<button type="button" class="uv-card__download fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-download-line" data-action="download-single" title="Télécharger l’affiche de cette UV seule" aria-label="Télécharger l’affiche de ' + escapeHtml(formatUvTitle(g.uv)) + '"></button>'
         : '';
       return '<div class="uv-card" data-uv="' + escapeHtml(g.uv) + '" data-occupancy="' + occupancyStatusOf(g) + '">' +
         '<div class="uv-card__header"><h3 class="uv-card__title">' + escapeHtml(formatUvTitle(g.uv)) + '</h3></div>' +

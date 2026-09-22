@@ -879,6 +879,10 @@
           <label class="fr-label" for="configTabGestionMateriels">Gérer le matériel</label>
         </div>
         <div class="fr-segmented__element">
+          <input type="radio" id="configTabGestionHebergement" name="configTab" value="gestionHebergement">
+          <label class="fr-label" for="configTabGestionHebergement">Gérer les infrastructures d’hébergement</label>
+        </div>
+        <div class="fr-segmented__element">
           <input type="radio" id="configTabReglages" name="configTab" value="reglages">
           <label class="fr-label" for="configTabReglages">Réglages du widget</label>
         </div>
@@ -939,9 +943,28 @@
       <div id="gmZone"></div>
     </div>
 
-    <!-- Sous-onglet "Réglages du widget" : mapping des 4 tables Grist (2
-         pages de demandes + 2 pages de gestion du parc) et de leurs
-         colonnes — inchangé pour les deux premières sections. -->
+    <!-- Sous-onglet "Gérer les infrastructures d'hébergement" : recensement
+         des UV (Bâtiment, Chambre, Capacité), avec ajout et suppression —
+         à la différence des deux sous-onglets ci-dessus (qui ne font que
+         basculer une disponibilité), cette page permet de créer et
+         supprimer des lignes (voir renderInfraPage / "Nouvelle
+         infrastructure"). Pas de filtre ici : la liste reste simple. -->
+    <div id="configPanelGestionHebergement" hidden>
+      <div class="req-toolbar fr-mb-2w">
+        <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="ghNewInfraBtn" type="button">
+          Nouvelle infrastructure
+        </button>
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="ghReloadBtn" type="button" title="Recharger les infrastructures depuis la table Grist">
+          Actualiser
+        </button>
+        <p class="req-count req-count--push" id="ghCount"></p>
+      </div>
+      <div id="ghZone"></div>
+    </div>
+
+    <!-- Sous-onglet "Réglages du widget" : mapping des tables Grist (2
+         pages de demandes + 3 pages de gestion du parc / hébergement) et
+         de leurs colonnes — inchangé pour les sections déjà existantes. -->
     <div id="configPanelReglages" hidden>
     <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
       <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget. Cliquez sur une section pour la déplier ; le badge indique si elle est déjà configurée.</p>
@@ -1163,6 +1186,33 @@
             </div>
           </div>
         </section>
+
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionHebergement">Gérer les infrastructures d’hébergement — recensement des UV <span class="fr-badge fr-badge--sm" id="ghConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accGestionHebergement">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_table">Table Grist</label>
+                <select class="fr-select" id="gh_table" data-page="gestionHebergement"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_batiment">Bâtiment</label>
+                <select class="fr-select" id="gh_col_batiment" data-page="gestionHebergement" data-role="batiment"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_chambre">Chambre</label>
+                <select class="fr-select" id="gh_col_chambre" data-page="gestionHebergement" data-role="chambre"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_capacite">Capacité</label>
+                <select class="fr-select" id="gh_col_capacite" data-page="gestionHebergement" data-role="capacite"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">Table utilisée par l’onglet « Gérer les infrastructures d’hébergement » de la Configuration, pour ajouter ou supprimer des UV (une ligne = une UV, avec son bâtiment, sa chambre et sa capacité). Vous pouvez pointer vers la même table que la section « Hébergement » ci-dessous si vos UV et vos occupants sont dans la même table Grist.</p>
+          </div>
+        </section>
       </div>
 
       <p class="config-group-title">Hébergement</p>
@@ -1193,13 +1243,9 @@
                 <label class="fr-label" for="occ_col_capacite">Capacité de l’UV (optionnel)</label>
                 <select class="fr-select" id="occ_col_capacite" data-page="occupants" data-role="capacite"></select>
               </div>
-              <div class="fr-select-group">
-                <label class="fr-label" for="occ_col_nbOccupants">Nombre d’occupants (optionnel)</label>
-                <select class="fr-select" id="occ_col_nbOccupants" data-page="occupants" data-role="nbOccupants"></select>
-              </div>
             </div>
             <p class="fr-hint-text fr-mt-2w">« Bât. » sert à créer un filtre par bâtiment sur la page « Hébergement ». « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
-            <p class="fr-hint-text fr-mt-2w">« Capacité de l’UV » et « Nombre d’occupants » (optionnels, colonnes numériques) : si réglées, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse. Si « Nombre d’occupants » n’est pas réglé, le nombre d’occupants de la colonne « Occupants » est utilisé à la place.</p>
+            <p class="fr-hint-text fr-mt-2w">« Capacité de l’UV » (optionnelle, colonne numérique) : si réglée, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse. Le nombre d’occupants est toujours calculé automatiquement à partir du nombre de noms dans la colonne « Occupants ».</p>
           </div>
         </section>
       </div>
@@ -1270,6 +1316,29 @@
   </div>
 </div>
 
+<!-- Fenêtre "Nouvelle infrastructure" : formulaire d'ajout d'une UV
+     (Bâtiment / Chambre / Capacité) depuis l'onglet "Gérer les
+     infrastructures d'hébergement" de la Configuration — même habillage
+     que les autres modales (.newreq-overlay/.newreq-dialog), sans mode
+     édition ni suppression (la suppression se fait ligne par ligne
+     depuis le tableau, voir renderInfraPage). -->
+<div class="newreq-overlay" id="newInfraOverlay" hidden>
+  <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="newInfraTitle">
+    <div class="newreq-dialog__header">
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="newInfraCloseBtn" type="button">Fermer</button>
+    </div>
+    <h1 id="newInfraTitle">Nouvelle infrastructure</h1>
+    <form id="newInfraForm">
+      <div id="newInfraBody"></div>
+      <p class="fr-hint-text" id="newInfraStatus" aria-live="polite"></p>
+      <div class="newreq-dialog__footer">
+        <button class="fr-btn fr-btn--secondary" type="button" id="newInfraCancelBtn">Annuler</button>
+        <button class="fr-btn" type="submit" id="newInfraSubmitBtn">Ajouter l’infrastructure</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <footer class="widget-footer" role="contentinfo">
   <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026</p>
   <a class="fr-link fr-icon-external-link-line fr-link--icon-right" href="https://grist.numerique.gouv.fr/o/sgr-drj-rgif/forms/ft2KFq6RVvuCGAQadxN8G1/97" target="_blank" rel="noopener external" title="Contacter l'équipe projet - ouvre une nouvelle fenêtre">Contacter l'équipe projet</a>
@@ -1321,20 +1390,27 @@
   // Rôles de colonnes de la page "Occupants par UV" : Bât. (sert à créer
   // un filtre), UV, Occupants (colonne Liste de choix / Références
   // multiples, une carte par UV avec un badge par occupant — voir
-  // renderOccupantsPage), plus Capacité/Nombre d'occupants (optionnels,
-  // colonnes numériques) qui pilotent le fond pastel de chaque carte.
-  var OCCUPANTS_ROLES = ['batiment', 'uv', 'occupants', 'capacite', 'nbOccupants'];
+  // renderOccupantsPage), plus Capacité (optionnelle, colonne numérique)
+  // qui pilote le fond pastel de chaque carte. Le nombre d'occupants
+  // n'est plus une colonne mappée séparément : il est désormais toujours
+  // calculé à partir du nombre d'occupants listés dans la colonne
+  // "Occupants" (voir effectiveOccupantCount).
+  var OCCUPANTS_ROLES = ['batiment', 'uv', 'occupants', 'capacite'];
+  // Rôles de colonnes de la page "Gérer les infrastructures d'hébergement"
+  // (onglet de la zone Configuration) : recensement des UV (Bâtiment,
+  // Chambre, Capacité), avec ajout/suppression — voir renderInfraPage.
+  var INFRA_ROLES = ['batiment', 'chambre', 'capacite'];
 
   // Registre des pages du widget : les 2 pages de demandes et la page
-  // "Occupants par UV" (menu principal), plus les 2 pages de gestion du
-  // parc (onglets de la zone Configuration, accessible par le geste
-  // caché) — regroupe tout ce qui les distingue, pour que le reste du
-  // script (filtres, chargement, réglages) reste générique et commun à
+  // "Occupants par UV" (menu principal), plus les 3 pages de gestion du
+  // parc/hébergement (onglets de la zone Configuration, accessible par le
+  // geste caché) — regroupe tout ce qui les distingue, pour que le reste
+  // du script (filtres, chargement, réglages) reste générique et commun à
   // toutes les pages.
-  var ALL_PAGES = ['vehicules', 'materiels', 'occupants', 'gestionVehicules', 'gestionMateriels'];
-  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, occupants: OCCUPANTS_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES };
-  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', occupants: 'occ', gestionVehicules: 'gv', gestionMateriels: 'gm' }; // vehZone, vehCount, vehRefreshBtn…
-  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', occupants: 'occ_', gestionVehicules: 'gv_', gestionMateriels: 'gm_' }; // veh_table, veh_col_demandeur…
+  var ALL_PAGES = ['vehicules', 'materiels', 'occupants', 'gestionVehicules', 'gestionMateriels', 'gestionHebergement'];
+  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, occupants: OCCUPANTS_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES, gestionHebergement: INFRA_ROLES };
+  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', occupants: 'occ', gestionVehicules: 'gv', gestionMateriels: 'gm', gestionHebergement: 'gh' }; // vehZone, vehCount, vehRefreshBtn…
+  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', occupants: 'occ_', gestionVehicules: 'gv_', gestionMateriels: 'gm_', gestionHebergement: 'gh_' }; // veh_table, veh_col_demandeur…
   var PAGE_REQUIRED_COLS = {
     // Demandeur et Véhicule sont optionnels côté véhicules (voir
     // PAGE_OPTIONAL_COLS ci-dessous) : seule Décision reste obligatoire
@@ -1343,23 +1419,26 @@
     materiels: ['demandeur', 'objet', 'decision'],
     occupants: ['batiment', 'uv', 'occupants'],
     gestionVehicules: ['identifiant', 'type', 'etat'],
-    gestionMateriels: ['identifiant', 'type', 'etat']
+    gestionMateriels: ['identifiant', 'type', 'etat'],
+    gestionHebergement: ['batiment', 'chambre', 'capacite']
   };
   var PAGE_OPTIONAL_COLS = {
     vehicules: ['demandeur', 'objet', 'quantite', 'conflit'],
     materiels: ['conflit', 'materielAccorde'],
-    occupants: ['capacite', 'nbOccupants'],
+    occupants: ['capacite'],
     gestionVehicules: [],
-    gestionMateriels: []
+    gestionMateriels: [],
+    gestionHebergement: []
   };
   var PAGE_VALEURS_DEFAULT = {
     vehicules: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
     materiels: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
     occupants: {},
     gestionVehicules: { disponible: 'Disponible', indisponible: 'Indisponible' },
-    gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' }
+    gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' },
+    gestionHebergement: {}
   };
-  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', occupants: 'occupants', gestionVehicules: 'gestion', gestionMateriels: 'gestion' };
+  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', occupants: 'occupants', gestionVehicules: 'gestion', gestionMateriels: 'gestion', gestionHebergement: 'infra' };
 
   // gristHelper_Display / gristHelper_Display2… sont des colonnes formule
   // internes que Grist crée automatiquement pour afficher le texte d'une
@@ -1408,7 +1487,11 @@
     materiels: ['decision', 'demandeur'],
     occupants: ['batiment'],
     gestionVehicules: ['etat', 'type'],
-    gestionMateriels: ['etat', 'type']
+    gestionMateriels: ['etat', 'type'],
+    // Pas de filtre sur "Gérer les infrastructures d'hébergement" : la
+    // liste reste volontairement simple (ajout/suppression), voir
+    // renderInfraPage.
+    gestionHebergement: []
   };
   // Valeur pseudo-décision proposée dans le filtre "Etat" des pages de
   // demandes, en plus des vraies valeurs de la colonne Décision : coche
@@ -1421,14 +1504,16 @@
     materiels: { decision: 'Etat', demandeur: 'Demandeur' },
     occupants: { batiment: 'Bât.' },
     gestionVehicules: { etat: 'Disponibilité', type: 'Type de véhicule' },
-    gestionMateriels: { etat: 'Disponibilité', type: 'Catégorie' }
+    gestionMateriels: { etat: 'Disponibilité', type: 'Catégorie' },
+    gestionHebergement: {}
   };
   var FILTER_DOM_IDS = {
     vehicules: { decision: { btn: 'vehFilterBtn', list: 'vehFilterList' }, demandeur: { btn: 'vehDemandeurFilterBtn', list: 'vehDemandeurFilterList' } },
     materiels: { decision: { btn: 'matFilterBtn', list: 'matFilterList' }, demandeur: { btn: 'matDemandeurFilterBtn', list: 'matDemandeurFilterList' } },
     occupants: { batiment: { btn: 'occFilterBtn', list: 'occFilterList' } },
     gestionVehicules: { etat: { btn: 'gvFilterBtn', list: 'gvFilterList' }, type: { btn: 'gvTypeFilterBtn', list: 'gvTypeFilterList' } },
-    gestionMateriels: { etat: { btn: 'gmFilterBtn', list: 'gmFilterList' }, type: { btn: 'gmTypeFilterBtn', list: 'gmTypeFilterList' } }
+    gestionMateriels: { etat: { btn: 'gmFilterBtn', list: 'gmFilterList' }, type: { btn: 'gmTypeFilterBtn', list: 'gmTypeFilterList' } },
+    gestionHebergement: {}
   };
 
   var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture de la configuration
@@ -1803,11 +1888,13 @@
   var configTabPanels = {
     gestionVehicules: document.getElementById('configPanelGestionVehicules'),
     gestionMateriels: document.getElementById('configPanelGestionMateriels'),
+    gestionHebergement: document.getElementById('configPanelGestionHebergement'),
     reglages: document.getElementById('configPanelReglages')
   };
   var configTabRadios = {
     gestionVehicules: document.getElementById('configTabGestionVehicules'),
     gestionMateriels: document.getElementById('configTabGestionMateriels'),
+    gestionHebergement: document.getElementById('configTabGestionHebergement'),
     reglages: document.getElementById('configTabReglages')
   };
   function setConfigTab(tab) {
@@ -2375,6 +2462,7 @@
   function renderPage(pageKey) {
     if (PAGE_KIND[pageKey] === 'gestion') return renderGestionPage(pageKey);
     if (PAGE_KIND[pageKey] === 'occupants') return renderOccupantsPage(pageKey);
+    if (PAGE_KIND[pageKey] === 'infra') return renderInfraPage(pageKey);
     return renderDemandePage(pageKey);
   }
 
@@ -2818,6 +2906,87 @@
     });
   }
 
+  // ---- Page "Gérer les infrastructures d'hébergement" -------------------
+  // A la différence de renderGestionPage (qui ne fait que basculer une
+  // disponibilité), cette page permet d'ajouter (bouton "Nouvelle
+  // infrastructure", voir openNewInfraModal) et de supprimer (bouton par
+  // ligne, voir deleteInfraRow) des UV — pas de notion d'"état" ici, donc
+  // pas de bouton de bascule, et pas de filtre (voir FILTER_KEYS).
+  function renderInfraPage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
+    var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
+
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
+        '<p>Aucune table n’est configurée pour cette page. Associez une table Grist et ses colonnes ci-dessous, dans l’onglet « Réglages du widget ».</p>' +
+        '</div>';
+      return;
+    }
+    if (pageData[pageKey].error) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
+      return;
+    }
+    if (!pageData[pageKey].loaded) {
+      countEl.textContent = '';
+      zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
+      return;
+    }
+
+    var rows = pageData[pageKey].rows.slice();
+    rows.sort(function (a, b) {
+      var ba = textOf(a.batiment), bb = textOf(b.batiment);
+      if (ba !== bb) return ba.localeCompare(bb, 'fr');
+      return textOf(a.chambre).localeCompare(textOf(b.chambre), 'fr');
+    });
+
+    countEl.textContent = rows.length + ' infrastructure(s)';
+
+    if (rows.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucune infrastructure dans la table configurée. Utilisez le bouton « Nouvelle infrastructure » ci-dessus pour en ajouter.</p></div>';
+      return;
+    }
+
+    var head = '<tr>' +
+      '<th scope="col" style="width:28%">Bâtiment</th>' +
+      '<th scope="col" style="width:28%">Chambre</th>' +
+      '<th scope="col" style="width:22%">Capacité</th>' +
+      '<th scope="col" style="width:22%"><span class="fr-sr-only">Actions</span></th>' +
+      '</tr>';
+
+    var body = rows.map(function (r) {
+      return '<tr data-row-id="' + r.id + '">' +
+        '<td data-label="Bâtiment">' + escapeHtml(textOf(r.batiment)) + '</td>' +
+        '<td data-label="Chambre">' + escapeHtml(textOf(r.chambre)) + '</td>' +
+        '<td data-label="Capacité">' + escapeHtml(textOf(r.capacite)) + '</td>' +
+        '<td data-label="Actions">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-delete-line" data-action="delete-infra" title="Supprimer cette infrastructure">' +
+        '<span class="fr-sr-only">Supprimer cette infrastructure</span>' +
+        '</button>' +
+        '</td>' +
+        '</tr>';
+    }).join('');
+
+    zone.innerHTML =
+      '<div class="fr-table fr-table--bordered">' +
+      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
+      '<table class="req-table"><caption class="fr-sr-only">Infrastructures d’hébergement</caption>' +
+      '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
+      '</table>' +
+      '</div></div></div>' +
+      '</div>';
+
+    zone.querySelectorAll('button[data-action="delete-infra"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tr = btn.closest('tr[data-row-id]');
+        var rowId = Number(tr.getAttribute('data-row-id'));
+        deleteInfraRow(rowId);
+      });
+    });
+  }
+
   // ---- Page "Occupants par UV" ---------------------------------------------
   // Regroupe les lignes chargées par UV (normalement une seule ligne par
   // UV, mais on fusionne quand même par sécurité si la table en compte
@@ -2832,13 +3001,12 @@
       if (!uv) return;
       var key = normalizeKey(uv);
       if (!map[key]) {
-        map[key] = { uv: uv, batiment: textOf(r.batiment), capacite: NaN, nbOccupants: NaN, occupants: [] };
+        map[key] = { uv: uv, batiment: textOf(r.batiment), capacite: NaN, occupants: [] };
         order.push(key);
       }
       var grp = map[key];
       if (!grp.batiment) grp.batiment = textOf(r.batiment);
       if (isNaN(grp.capacite)) grp.capacite = numOf(r.capacite);
-      if (isNaN(grp.nbOccupants)) grp.nbOccupants = numOf(r.nbOccupants);
       listOf(r.occupants).forEach(function (name) {
         if (grp.occupants.indexOf(name) === -1) grp.occupants.push(name);
       });
@@ -2857,12 +3025,11 @@
   }
 
   // Nombre d'occupants "effectif" d'une UV pour la comparaison à la
-  // capacité (voir occupancyStatusOf) : la colonne "Nombre d'occupants"
-  // si elle est réglée et renseignée, sinon le nombre de badges Occupants
-  // (voir listOf) — une UV reste donc utilisable même sans cette colonne
-  // optionnelle.
+  // capacité (voir occupancyStatusOf) : toujours le nombre de badges
+  // Occupants (voir listOf) — il n'y a plus de colonne "Nombre
+  // d'occupants" séparée à mapper, le nombre est désormais calculé.
   function effectiveOccupantCount(g) {
-    return isNaN(g.nbOccupants) ? g.occupants.length : g.nbOccupants;
+    return g.occupants.length;
   }
 
   // Statut d'occupation d'une UV, pour le fond pastel de sa carte (voir
@@ -3158,6 +3325,20 @@
   var currentAssignMaterielRole = null;
   var currentAssignMaterielFieldLabel = '';
 
+  // Modale "Nouvelle infrastructure" (voir plus bas openNewInfraModal) :
+  // formulaire dédié, plus simple que "Nouvelle demande" (pas de mode
+  // édition ni de champ Décision) — un seul jeu de champs (Bâtiment,
+  // Chambre, Capacité), toujours en création (AddRecord).
+  var newInfraOverlay = document.getElementById('newInfraOverlay');
+  var newInfraForm = document.getElementById('newInfraForm');
+  var newInfraBody = document.getElementById('newInfraBody');
+  var newInfraStatus = document.getElementById('newInfraStatus');
+  // Jeton incrémenté à chaque ouverture/fermeture, pour ignorer la
+  // résolution d'un buildNewInfraForm() lancé pour une ouverture déjà
+  // refermée entre-temps (même principe que la comparaison
+  // currentNewRequestPage/RowId dans openNewRequestModal).
+  var newInfraOpenToken = 0;
+
   function closeNewRequestModal() {
     newRequestOverlay.hidden = true;
     currentNewRequestPage = null;
@@ -3323,7 +3504,7 @@
         return '<div class="fr-select-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
           '<select class="fr-select" id="' + inputId + '" data-role="' + role + '" data-kind="ref"' + requiredAttr + '>' + optionsHtml + '</select>' + hintHtml + '</div>';
       });
-    } else if (role === 'quantite') {
+    } else if (role === 'quantite' || role === 'capacite') {
       return Promise.resolve(
         '<div class="fr-input-group"><label class="fr-label" for="' + inputId + '">' + escapeHtml(label) + '</label>' +
         '<input class="fr-input" type="number" min="1" step="1" id="' + inputId + '" data-role="' + role + '" data-kind="number"' + requiredAttr + '></div>'
@@ -3461,6 +3642,99 @@
     }).catch(function (e) {
       newRequestStatus.textContent = '';
       window.alert('Impossible de supprimer la demande : ' + friendlyErrorMessage(e));
+    });
+  }
+
+  // ---- Modale "Nouvelle infrastructure" ----------------------------------
+
+  var INFRA_FIELD_LABELS = { batiment: 'Bâtiment', chambre: 'Chambre', capacite: 'Capacité' };
+
+  // Construit les 3 champs du formulaire (dans l'ordre de INFRA_ROLES),
+  // tous obligatoires — réutilise buildRequestFieldHtml (résolution des
+  // colonnes Référence comprise) comme buildNewRequestForm, avec
+  // forceRequired=true puisque les 3 rôles sont requis pour cette page
+  // (voir PAGE_REQUIRED_COLS.gestionHebergement).
+  function buildNewInfraForm(cfg) {
+    return loadGristMeta().then(function (meta) {
+      var fieldPromises = INFRA_ROLES.map(function (role) {
+        var inputId = 'newinfra_' + role;
+        return buildRequestFieldHtml('gestionHebergement', cfg, meta, role, INFRA_FIELD_LABELS[role], inputId, true);
+      });
+      return Promise.all(fieldPromises).then(function (parts) { return parts.join(''); });
+    });
+  }
+
+  function closeNewInfraModal() {
+    newInfraOverlay.hidden = true;
+    newInfraOpenToken++;
+    newInfraForm.reset();
+    newInfraStatus.textContent = '';
+  }
+
+  function openNewInfraModal() {
+    var cfg = settings.gestionHebergement;
+    if (!isPageConfigComplete('gestionHebergement', cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant d’ajouter une infrastructure.');
+      return;
+    }
+    newInfraStatus.textContent = '';
+    newInfraBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
+    newInfraOverlay.hidden = false;
+    var openToken = ++newInfraOpenToken;
+    buildNewInfraForm(cfg).then(function (html) {
+      if (openToken !== newInfraOpenToken) return; // fermée/rouverte entre-temps
+      newInfraBody.innerHTML = html;
+    });
+  }
+
+  // Crée la nouvelle infrastructure (toujours un AddRecord : cette modale
+  // n'a pas de mode édition, voir openNewInfraModal).
+  function submitNewInfra() {
+    var cfg = settings.gestionHebergement;
+    var inputs = newInfraForm.querySelectorAll('[data-role]');
+    var badField = null;
+    inputs.forEach(function (el) {
+      if (badField) return;
+      var role = el.getAttribute('data-role');
+      if (!isWritableColId(cfg.col[role])) badField = INFRA_FIELD_LABELS[role] || role;
+    });
+    if (badField) {
+      window.alert('Le champ « ' + badField + ' » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+        'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne pour ce champ, puis enregistrez.');
+      return;
+    }
+
+    var fields = {};
+    inputs.forEach(function (el) {
+      var role = el.getAttribute('data-role');
+      var kind = el.getAttribute('data-kind');
+      var raw = el.value;
+      var value = raw;
+      if (kind === 'ref') value = raw ? parseInt(raw, 10) : null;
+      else if (kind === 'number') value = raw ? parseInt(raw, 10) : null;
+      fields[cfg.col[role]] = value;
+    });
+
+    newInfraStatus.textContent = 'Enregistrement…';
+    grist.docApi.applyUserActions([['AddRecord', cfg.table, null, fields]]).then(function () {
+      closeNewInfraModal();
+      loadPageData('gestionHebergement');
+    }).catch(function (e) {
+      newInfraStatus.textContent = '';
+      window.alert('Impossible de créer l’infrastructure : ' + friendlyErrorMessage(e));
+    });
+  }
+
+  // Supprime une infrastructure (bouton par ligne du tableau, voir
+  // renderInfraPage) : demande confirmation, puis RemoveRecord — pas de
+  // modale dédiée, à la différence des demandes (deleteCurrentRequest).
+  function deleteInfraRow(rowId) {
+    var cfg = settings.gestionHebergement;
+    if (!window.confirm('Supprimer définitivement cette infrastructure ? Cette action est irréversible.')) return;
+    grist.docApi.applyUserActions([['RemoveRecord', cfg.table, rowId]]).then(function () {
+      loadPageData('gestionHebergement');
+    }).catch(function (e) {
+      window.alert('Impossible de supprimer l’infrastructure : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -3632,6 +3906,21 @@
     e.preventDefault();
     if (!newRequestForm.checkValidity()) { newRequestForm.reportValidity(); return; }
     if (currentNewRequestPage) submitNewRequest(currentNewRequestPage);
+  });
+
+  document.getElementById('ghNewInfraBtn').addEventListener('click', openNewInfraModal);
+  document.getElementById('newInfraCloseBtn').addEventListener('click', closeNewInfraModal);
+  document.getElementById('newInfraCancelBtn').addEventListener('click', closeNewInfraModal);
+  newInfraOverlay.addEventListener('click', function (e) {
+    if (e.target === newInfraOverlay) closeNewInfraModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !newInfraOverlay.hidden) closeNewInfraModal();
+  });
+  newInfraForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!newInfraForm.checkValidity()) { newInfraForm.reportValidity(); return; }
+    submitNewInfra();
   });
 
 })();

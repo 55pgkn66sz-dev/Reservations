@@ -3369,7 +3369,17 @@
     assignMaterielConflictZone.innerHTML = '';
     assignMaterielSubmitBtn.hidden = false;
     assignMaterielCancelBtn.textContent = 'Annuler';
-    assignMaterielBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
+
+    // Rappel du matériel sollicité (rôle "objet") avant le champ de
+    // sélection du matériel accordé, pour choisir en connaissance de
+    // cause — connu synchroniquement via pageData, pas besoin d'attendre
+    // buildRequestFieldHtml pour l'afficher.
+    var rowRec = (pageData[pageKey].rows || []).find(function (rr) { return rr.id === rowId; });
+    var objetText = rowRec ? textOfRef(rowRec.objet) : '';
+    var objetReminderHtml = '<p class="fr-text--sm">Matériel sollicité : <strong>' +
+      (objetText ? escapeHtml(objetText) : 'non renseigné') + '</strong></p>';
+
+    assignMaterielBody.innerHTML = objetReminderHtml + '<p class="fr-text--sm">Chargement du formulaire…</p>';
     assignMaterielOverlay.hidden = false;
     loadGristMeta().then(function (meta) {
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return; // fermé/changé entre-temps
@@ -3377,10 +3387,10 @@
     }).then(function (html) {
       if (!html) return; // fermé/changé entre-temps (cf. ci-dessus)
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return;
-      assignMaterielBody.innerHTML = html;
+      assignMaterielBody.innerHTML = objetReminderHtml + html;
     }).catch(function (e) {
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return;
-      assignMaterielBody.innerHTML = '';
+      assignMaterielBody.innerHTML = objetReminderHtml;
       assignMaterielStatus.textContent = 'Impossible de charger le formulaire : ' + friendlyErrorMessage(e);
     });
   }

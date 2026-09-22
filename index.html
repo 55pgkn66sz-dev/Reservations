@@ -88,25 +88,14 @@
      d'indice visuel volontaire (voir #brandGesture dans le script), on
      laisse simplement le curseur normal de fr-enlarge-link. */
 
-  /* En-tête détaché du flux de page au scroll (position: sticky) : reste
-     visible en haut de l'écran plutôt que de défiler avec le reste du
-     contenu, pour garder le menu de navigation (Véhicules/Matériels/
-     Hébergement) toujours accessible. z-index sous la fenêtre modale
-     "Nouvelle demande" (.newreq-overlay, z-index: 100 — elle doit rester
-     au-dessus), au-dessus des menus déroulants (.dropdown-menu__list,
-     z-index: 20) pour ne pas se faire recouvrir par le contenu qui défile
-     en dessous. Une ombre portée (voir updateHeaderScrolledState dans le
-     script) n'apparaît qu'une fois la page effectivement scrollée, pour
-     bien détacher visuellement l'en-tête du contenu — absente en haut de
-     page, rien à distinguer à ce moment-là. */
+  /* L'en-tête suit le flux normal de la page : il défile avec le reste du
+     contenu au scroll (pas de position: sticky/fixed), comme demandé.
+     z-index conservé au-dessus des menus déroulants (.dropdown-menu__list,
+     z-index: 20) pour ne pas se faire recouvrir pendant son défilement,
+     mais sous la fenêtre modale "Nouvelle demande" (.newreq-overlay,
+     z-index: 100 — elle doit rester au-dessus). */
   header.fr-header {
-    position: sticky;
-    top: 0;
     z-index: 30;
-    transition: box-shadow 0.2s ease;
-  }
-  header.fr-header.is-scrolled {
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
   }
 
   /* Menu déroulant (filtre Décision) : bouton + liste positionnée en
@@ -1259,7 +1248,6 @@
   var panelOccupants = document.getElementById('panelOccupants');
   var panelSettings = document.getElementById('panelSettings');
   var brandGesture = document.getElementById('brandGesture');
-  var siteHeader = document.getElementById('siteHeader');
   var closeConfigBtn = document.getElementById('closeConfigBtn');
   var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
@@ -1820,19 +1808,6 @@
       openSettings();
     }
   });
-
-  // ---- En-tête détaché du flux au scroll (position: sticky, voir CSS
-  // header.fr-header) : reste visible en haut de l'écran au lieu de
-  // défiler avec le reste de la page, pour garder le menu de navigation
-  // toujours accessible. La classe "is-scrolled" (ombre portée, voir CSS)
-  // n'est posée qu'une fois la page effectivement scrollée, pour bien
-  // distinguer l'en-tête du contenu qui défile en dessous — absente en
-  // haut de page, rien à distinguer à ce moment-là.
-  function updateHeaderScrolledState() {
-    siteHeader.classList.toggle('is-scrolled', window.scrollY > 0);
-  }
-  window.addEventListener('scroll', updateHeaderScrolledState, { passive: true });
-  updateHeaderScrolledState();
 
   function pageConfigFromForm(pageKey) {
     var prefix = PAGE_FORM_PREFIX[pageKey];

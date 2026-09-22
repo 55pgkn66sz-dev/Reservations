@@ -954,6 +954,9 @@
         <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="ghNewInfraBtn" type="button">
           Nouvelle infrastructure
         </button>
+        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-stack-line fr-btn--icon-left" id="ghNewInfraBulkBtn" type="button" title="Ajouter plusieurs chambres d’un même bâtiment en une fois">
+          Ajouter en lot
+        </button>
         <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="ghReloadBtn" type="button" title="Recharger les infrastructures depuis la table Grist">
           Actualiser
         </button>
@@ -1187,39 +1190,27 @@
           </div>
         </section>
 
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionHebergement">Gérer les infrastructures d’hébergement — recensement des UV <span class="fr-badge fr-badge--sm" id="ghConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse" id="accGestionHebergement">
-            <div class="settings-grid">
-              <div class="fr-select-group">
-                <label class="fr-label" for="gh_table">Table Grist</label>
-                <select class="fr-select" id="gh_table" data-page="gestionHebergement"></select>
-              </div>
-              <div class="fr-select-group">
-                <label class="fr-label" for="gh_col_batiment">Bâtiment</label>
-                <select class="fr-select" id="gh_col_batiment" data-page="gestionHebergement" data-role="batiment"></select>
-              </div>
-              <div class="fr-select-group">
-                <label class="fr-label" for="gh_col_chambre">Chambre</label>
-                <select class="fr-select" id="gh_col_chambre" data-page="gestionHebergement" data-role="chambre"></select>
-              </div>
-              <div class="fr-select-group">
-                <label class="fr-label" for="gh_col_capacite">Capacité</label>
-                <select class="fr-select" id="gh_col_capacite" data-page="gestionHebergement" data-role="capacite"></select>
-              </div>
-            </div>
-            <p class="fr-hint-text fr-mt-2w">Table utilisée par l’onglet « Gérer les infrastructures d’hébergement » de la Configuration, pour ajouter ou supprimer des UV (une ligne = une UV, avec son bâtiment, sa chambre et sa capacité). Vous pouvez pointer vers la même table que la section « Hébergement » ci-dessous si vos UV et vos occupants sont dans la même table Grist.</p>
-          </div>
-        </section>
       </div>
 
       <p class="config-group-title">Hébergement</p>
       <div class="fr-accordions-group fr-mb-3w">
+        <!-- Section fusionnée : la page "Hébergement" (occupants) et l'onglet
+             "Gérer les infrastructures d'hébergement" (ajout/suppression
+             d'UV) pointent en pratique vers la MÊME table Grist (une UV =
+             un bâtiment + une chambre + une capacité + ses occupants) — un
+             seul jeu Table/Bâtiment/Capacité est donc proposé ici,
+             recopié en interne vers les réglages de gestionHebergement
+             (selects gh_table/gh_col_batiment/gh_col_capacite, conservés
+             cachés ci-dessous pour que le reste du script — générique par
+             page — n'ait pas besoin d'être spécialisé). "Chambre" et
+             "UV"/"Occupants" restent des champs distincts : "Chambre"
+             est le numéro seul (utilisé pour ajouter/supprimer des UV),
+             "UV" est l'identifiant combiné affiché par la page Hébergement
+             (ex. "3-12", voir formatUvTitle). Voir mirrorHebergementField
+             côté script. -->
         <section class="fr-accordion">
           <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accOccupants">Hébergement <span class="fr-badge fr-badge--sm" id="occConfigStatus"></span></button>
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accOccupants">Hébergement — UV, chambres et occupants <span class="fr-badge fr-badge--sm" id="occConfigStatus"></span></button>
           </h4>
           <div class="fr-collapse" id="accOccupants">
             <div class="settings-grid">
@@ -1228,8 +1219,12 @@
                 <select class="fr-select" id="occ_table" data-page="occupants"></select>
               </div>
               <div class="fr-select-group">
-                <label class="fr-label" for="occ_col_batiment">Bât.</label>
+                <label class="fr-label" for="occ_col_batiment">Bâtiment</label>
                 <select class="fr-select" id="occ_col_batiment" data-page="occupants" data-role="batiment"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_chambre">Chambre</label>
+                <select class="fr-select" id="gh_col_chambre" data-page="gestionHebergement" data-role="chambre"></select>
               </div>
               <div class="fr-select-group">
                 <label class="fr-label" for="occ_col_uv">UV</label>
@@ -1240,12 +1235,33 @@
                 <select class="fr-select" id="occ_col_occupants" data-page="occupants" data-role="occupants"></select>
               </div>
               <div class="fr-select-group">
-                <label class="fr-label" for="occ_col_capacite">Capacité de l’UV (optionnel)</label>
+                <label class="fr-label" for="occ_col_capacite">Capacité</label>
                 <select class="fr-select" id="occ_col_capacite" data-page="occupants" data-role="capacite"></select>
               </div>
             </div>
-            <p class="fr-hint-text fr-mt-2w">« Bât. » sert à créer un filtre par bâtiment sur la page « Hébergement ». « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
-            <p class="fr-hint-text fr-mt-2w">« Capacité de l’UV » (optionnelle, colonne numérique) : si réglée, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse. Le nombre d’occupants est toujours calculé automatiquement à partir du nombre de noms dans la colonne « Occupants ».</p>
+            <p class="fr-hint-text fr-mt-2w">« Bâtiment » sert à créer un filtre par bâtiment sur la page « Hébergement » ET à identifier le bâtiment de chaque UV dans l’onglet « Gérer les infrastructures d’hébergement ». « Chambre » (numéro seul) sert à l’ajout/suppression d’UV ; « UV » est l’identifiant combiné affiché sur la page Hébergement (ex. « 3-12 » → « Bâtiment 3 - Chambre 12 »). « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
+            <p class="fr-hint-text fr-mt-2w">« Capacité » (colonne numérique) : nécessaire pour utiliser l’onglet « Gérer les infrastructures d’hébergement » ; sur la page Hébergement, si réglée, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse (le nombre d’occupants est toujours calculé automatiquement à partir du nombre de noms dans la colonne « Occupants »).</p>
+            <!-- Table Grist et colonnes Bâtiment/Capacité de la page "Gérer
+                 les infrastructures d'hébergement" (gestionHebergement) :
+                 recopiées automatiquement depuis les champs partagés
+                 ci-dessus (voir mirrorHebergementField), donc masquées —
+                 conservées dans le DOM pour que refreshTableList/
+                 refreshColumnLists/isPageConfigComplete (génériques par
+                 page) continuent de fonctionner sans changement. -->
+            <div class="settings-grid" hidden>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_table">Table Grist (gestion des infrastructures)</label>
+                <select class="fr-select" id="gh_table" data-page="gestionHebergement"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_batiment">Bâtiment (gestion des infrastructures)</label>
+                <select class="fr-select" id="gh_col_batiment" data-page="gestionHebergement" data-role="batiment"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gh_col_capacite">Capacité (gestion des infrastructures)</label>
+                <select class="fr-select" id="gh_col_capacite" data-page="gestionHebergement" data-role="capacite"></select>
+              </div>
+            </div>
           </div>
         </section>
       </div>
@@ -1316,12 +1332,14 @@
   </div>
 </div>
 
-<!-- Fenêtre "Nouvelle infrastructure" : formulaire d'ajout d'une UV
-     (Bâtiment / Chambre / Capacité) depuis l'onglet "Gérer les
-     infrastructures d'hébergement" de la Configuration — même habillage
-     que les autres modales (.newreq-overlay/.newreq-dialog), sans mode
-     édition ni suppression (la suppression se fait ligne par ligne
-     depuis le tableau, voir renderInfraPage). -->
+<!-- Fenêtre "Nouvelle infrastructure" : formulaire d'ajout OU de
+     modification d'une UV (Bâtiment / Chambre / Capacité) depuis l'onglet
+     "Gérer les infrastructures d'hébergement" de la Configuration — même
+     habillage que les autres modales (.newreq-overlay/.newreq-dialog).
+     Titre/libellé du bouton et action (AddRecord/UpdateRecord) adaptés en
+     JS selon le mode (voir openNewInfraModal / openEditInfraModal /
+     submitNewInfra) ; la suppression, elle, se fait ligne par ligne
+     depuis le tableau, sans modale (voir renderInfraPage). -->
 <div class="newreq-overlay" id="newInfraOverlay" hidden>
   <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="newInfraTitle">
     <div class="newreq-dialog__header">
@@ -1334,6 +1352,34 @@
       <div class="newreq-dialog__footer">
         <button class="fr-btn fr-btn--secondary" type="button" id="newInfraCancelBtn">Annuler</button>
         <button class="fr-btn" type="submit" id="newInfraSubmitBtn">Ajouter l’infrastructure</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Fenêtre "Ajouter des chambres en lot" : un Bâtiment + une Capacité
+     communs, et une liste de Chambres saisies une par ligne — crée une
+     infrastructure par ligne (voir submitNewInfraBulk). Toujours en
+     création, pas de mode édition (voir openNewInfraBulkModal). -->
+<div class="newreq-overlay" id="newInfraBulkOverlay" hidden>
+  <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="newInfraBulkTitle">
+    <div class="newreq-dialog__header">
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="newInfraBulkCloseBtn" type="button">Fermer</button>
+    </div>
+    <h1 id="newInfraBulkTitle">Ajouter des chambres en lot</h1>
+    <p class="fr-text--sm">Ajoutez plusieurs chambres d’un même bâtiment en une fois : une infrastructure sera créée pour chaque ligne saisie ci-dessous, avec la même capacité.</p>
+    <form id="newInfraBulkForm">
+      <div id="newInfraBulkBatimentZone"></div>
+      <div class="fr-input-group">
+        <label class="fr-label" for="newinfra_bulk_chambres">Chambres (une par ligne)</label>
+        <textarea class="fr-input" id="newinfra_bulk_chambres" rows="6" required></textarea>
+        <p class="fr-hint-text">Une chambre par ligne, par exemple : 101 / 102 / 103.</p>
+      </div>
+      <div id="newInfraBulkCapaciteZone"></div>
+      <p class="fr-hint-text" id="newInfraBulkStatus" aria-live="polite"></p>
+      <div class="newreq-dialog__footer">
+        <button class="fr-btn fr-btn--secondary" type="button" id="newInfraBulkCancelBtn">Annuler</button>
+        <button class="fr-btn" type="submit" id="newInfraBulkSubmitBtn">Ajouter les chambres</button>
       </div>
     </form>
   </div>
@@ -2083,7 +2129,18 @@
       return !!(el && el.value);
     });
   }
+  // Section "Hébergement" fusionnée dans "Réglages du widget" (voir HTML) :
+  // la page "Hébergement" (occupants) et l'onglet "Gérer les
+  // infrastructures d'hébergement" (gestionHebergement) partagent la même
+  // table Grist, donc un seul badge (#occConfigStatus) reflète l'état des
+  // DEUX pages plutôt qu'un badge par page.
+  var HEBERGEMENT_BADGE_PAGES = ['occupants', 'gestionHebergement'];
   function updateConfigSectionStatus(pageKey) {
+    if (HEBERGEMENT_BADGE_PAGES.indexOf(pageKey) !== -1) {
+      var configured = HEBERGEMENT_BADGE_PAGES.every(computeSectionConfigured);
+      paintConfigBadge('occupants', configured);
+      return;
+    }
     paintConfigBadge(pageKey, computeSectionConfigured(pageKey));
   }
   function updateAllConfigSectionStatuses() {
@@ -2102,6 +2159,26 @@
     var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
     if (sel) sel.addEventListener('change', function () { refreshColumnLists(pageKey, this.value); });
   });
+
+  // ---- Section "Hébergement" fusionnée : recopie des champs partagés ----
+  // (Table Grist, Bâtiment, Capacité), saisis une seule fois côté
+  // "Hébergement" (occ_*), vers les selects cachés de la page
+  // gestionHebergement (gh_*, voir HTML) — le reste du script (générique
+  // par page : refreshColumnLists, isPageConfigComplete,
+  // pageConfigFromForm…) continue ainsi de fonctionner sans changement,
+  // tout en n'affichant qu'un seul jeu de champs à l'utilisateur.
+  function mirrorHebergementField(sourceId, targetId) {
+    var source = document.getElementById(sourceId);
+    var target = document.getElementById(targetId);
+    if (!source || !target) return;
+    source.addEventListener('change', function () {
+      target.value = source.value;
+      target.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  }
+  mirrorHebergementField('occ_table', 'gh_table');
+  mirrorHebergementField('occ_col_batiment', 'gh_col_batiment');
+  mirrorHebergementField('occ_col_capacite', 'gh_col_capacite');
 
   function showSettingsStatus(type, message) {
     settingsStatusZone.innerHTML = '<div class="fr-alert fr-alert--' + type + ' fr-alert--sm"><p>' + escapeHtml(message) + '</p></div>';
@@ -2949,23 +3026,33 @@
       return;
     }
 
+    // Actions en première colonne (comme le tableau des demandes, voir
+    // renderDemandePage), avec un intitulé "Actions" visible (et non
+    // fr-sr-only) — deux boutons : Éditer (ouvre la modale "Nouvelle
+    // infrastructure" en mode modification, voir openEditInfraModal) et
+    // Supprimer (voir deleteInfraRow).
     var head = '<tr>' +
+      '<th scope="col" style="width:16%">Actions</th>' +
       '<th scope="col" style="width:28%">Bâtiment</th>' +
       '<th scope="col" style="width:28%">Chambre</th>' +
-      '<th scope="col" style="width:22%">Capacité</th>' +
-      '<th scope="col" style="width:22%"><span class="fr-sr-only">Actions</span></th>' +
+      '<th scope="col" style="width:28%">Capacité</th>' +
       '</tr>';
 
     var body = rows.map(function (r) {
       return '<tr data-row-id="' + r.id + '">' +
-        '<td data-label="Bâtiment">' + escapeHtml(textOf(r.batiment)) + '</td>' +
-        '<td data-label="Chambre">' + escapeHtml(textOf(r.chambre)) + '</td>' +
-        '<td data-label="Capacité">' + escapeHtml(textOf(r.capacite)) + '</td>' +
         '<td data-label="Actions">' +
+        '<div class="req-actions" role="group" aria-label="Actions">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" data-action="edit-infra" title="Modifier cette infrastructure">' +
+        '<span class="fr-sr-only">Modifier cette infrastructure</span>' +
+        '</button>' +
         '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-delete-line" data-action="delete-infra" title="Supprimer cette infrastructure">' +
         '<span class="fr-sr-only">Supprimer cette infrastructure</span>' +
         '</button>' +
+        '</div>' +
         '</td>' +
+        '<td data-label="Bâtiment">' + escapeHtml(textOf(r.batiment)) + '</td>' +
+        '<td data-label="Chambre">' + escapeHtml(textOf(r.chambre)) + '</td>' +
+        '<td data-label="Capacité">' + escapeHtml(textOf(r.capacite)) + '</td>' +
         '</tr>';
     }).join('');
 
@@ -2978,6 +3065,13 @@
       '</div></div></div>' +
       '</div>';
 
+    zone.querySelectorAll('button[data-action="edit-infra"]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tr = btn.closest('tr[data-row-id]');
+        var rowId = Number(tr.getAttribute('data-row-id'));
+        openEditInfraModal(rowId);
+      });
+    });
     zone.querySelectorAll('button[data-action="delete-infra"]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var tr = btn.closest('tr[data-row-id]');
@@ -3325,19 +3419,39 @@
   var currentAssignMaterielRole = null;
   var currentAssignMaterielFieldLabel = '';
 
-  // Modale "Nouvelle infrastructure" (voir plus bas openNewInfraModal) :
-  // formulaire dédié, plus simple que "Nouvelle demande" (pas de mode
-  // édition ni de champ Décision) — un seul jeu de champs (Bâtiment,
-  // Chambre, Capacité), toujours en création (AddRecord).
+  // Modale "Nouvelle infrastructure" (voir plus bas openNewInfraModal /
+  // openEditInfraModal) : formulaire dédié, plus simple que "Nouvelle
+  // demande" (pas de champ Décision) — un seul jeu de champs (Bâtiment,
+  // Chambre, Capacité), en création (AddRecord) ou modification
+  // (UpdateRecord) selon currentInfraEditRowId, même principe que
+  // currentNewRequestRowId pour la modale "Nouvelle demande".
   var newInfraOverlay = document.getElementById('newInfraOverlay');
   var newInfraForm = document.getElementById('newInfraForm');
   var newInfraBody = document.getElementById('newInfraBody');
   var newInfraStatus = document.getElementById('newInfraStatus');
+  var newInfraTitleEl = document.getElementById('newInfraTitle');
+  var newInfraSubmitBtn = document.getElementById('newInfraSubmitBtn');
   // Jeton incrémenté à chaque ouverture/fermeture, pour ignorer la
   // résolution d'un buildNewInfraForm() lancé pour une ouverture déjà
   // refermée entre-temps (même principe que la comparaison
   // currentNewRequestPage/RowId dans openNewRequestModal).
   var newInfraOpenToken = 0;
+  // null en création ; l'id de la ligne éditée en modification (voir
+  // openEditInfraModal / submitNewInfra).
+  var currentInfraEditRowId = null;
+
+  // Modale "Ajouter des chambres en lot" (voir plus bas
+  // openNewInfraBulkModal) : un Bâtiment + une Capacité (communs à toutes
+  // les lignes créées) et une liste de Chambres saisies une par ligne
+  // dans une zone de texte — toujours en création (plusieurs AddRecord en
+  // un seul appel applyUserActions), pas de mode édition.
+  var newInfraBulkOverlay = document.getElementById('newInfraBulkOverlay');
+  var newInfraBulkForm = document.getElementById('newInfraBulkForm');
+  var newInfraBulkBatimentZone = document.getElementById('newInfraBulkBatimentZone');
+  var newInfraBulkCapaciteZone = document.getElementById('newInfraBulkCapaciteZone');
+  var newInfraBulkChambresInput = document.getElementById('newinfra_bulk_chambres');
+  var newInfraBulkStatus = document.getElementById('newInfraBulkStatus');
+  var newInfraBulkOpenToken = 0;
 
   function closeNewRequestModal() {
     newRequestOverlay.hidden = true;
@@ -3428,11 +3542,15 @@
     }).catch(function () { return null; });
   }
 
-  // Pré-remplit les champs du formulaire (déjà construits par
-  // buildNewRequestForm) à partir des valeurs brutes d'une ligne
-  // existante — inverse de la lecture faite dans submitNewRequest.
-  function fillFormFromRawRow(rawRow) {
-    var inputs = newRequestForm.querySelectorAll('[data-role]');
+  // Pré-remplit les champs d'un formulaire (déjà construit par
+  // buildNewRequestForm ou buildNewInfraForm) à partir des valeurs brutes
+  // d'une ligne existante — inverse de la lecture faite dans
+  // submitNewRequest/submitNewInfra. Factorisé (formEl en paramètre) pour
+  // servir à la fois à la modale "Nouvelle demande"/"Éditer la demande"
+  // (fillFormFromRawRow, ci-dessous) et à "Éditer l'infrastructure" (voir
+  // openEditInfraModal).
+  function fillFormFromRawRowInto(formEl, rawRow) {
+    var inputs = formEl.querySelectorAll('[data-role]');
     inputs.forEach(function (el) {
       var role = el.getAttribute('data-role');
       if (!Object.prototype.hasOwnProperty.call(rawRow, role)) return;
@@ -3446,6 +3564,9 @@
         el.value = String(raw);
       }
     });
+  }
+  function fillFormFromRawRow(rawRow) {
+    fillFormFromRawRowInto(newRequestForm, rawRow);
   }
 
   // Inverse de dateInputToTimestamp : un horodatage Unix (secondes) vers
@@ -3667,6 +3788,7 @@
   function closeNewInfraModal() {
     newInfraOverlay.hidden = true;
     newInfraOpenToken++;
+    currentInfraEditRowId = null;
     newInfraForm.reset();
     newInfraStatus.textContent = '';
   }
@@ -3674,9 +3796,12 @@
   function openNewInfraModal() {
     var cfg = settings.gestionHebergement;
     if (!isPageConfigComplete('gestionHebergement', cfg)) {
-      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget ») avant d’ajouter une infrastructure.');
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget », section « Hébergement ») avant d’ajouter une infrastructure.');
       return;
     }
+    currentInfraEditRowId = null;
+    newInfraTitleEl.textContent = 'Nouvelle infrastructure';
+    newInfraSubmitBtn.textContent = 'Ajouter l’infrastructure';
     newInfraStatus.textContent = '';
     newInfraBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
     newInfraOverlay.hidden = false;
@@ -3687,10 +3812,46 @@
     });
   }
 
-  // Crée la nouvelle infrastructure (toujours un AddRecord : cette modale
-  // n'a pas de mode édition, voir openNewInfraModal).
+  // Ouvre la même modale, pré-remplie avec les valeurs actuelles de la
+  // ligne (bouton "Éditer" de chaque ligne du tableau, voir
+  // renderInfraPage) ; la soumission fera un UpdateRecord sur cette ligne
+  // au lieu d'un AddRecord (voir submitNewInfra) — même principe que
+  // openEditRequestModal pour la modale "Nouvelle demande".
+  function openEditInfraModal(rowId) {
+    var cfg = settings.gestionHebergement;
+    if (!isPageConfigComplete('gestionHebergement', cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget », section « Hébergement ») avant de modifier une infrastructure.');
+      return;
+    }
+    currentInfraEditRowId = rowId;
+    newInfraTitleEl.textContent = 'Modifier l’infrastructure';
+    newInfraSubmitBtn.textContent = 'Enregistrer les modifications';
+    newInfraStatus.textContent = '';
+    newInfraBody.innerHTML = '<p class="fr-text--sm">Chargement du formulaire…</p>';
+    newInfraOverlay.hidden = false;
+    var openToken = ++newInfraOpenToken;
+    Promise.all([buildNewInfraForm(cfg), fetchRawRow('gestionHebergement', rowId)]).then(function (results) {
+      if (openToken !== newInfraOpenToken) return; // fermée/rouverte entre-temps
+      var html = results[0];
+      var rawRow = results[1];
+      newInfraBody.innerHTML = html;
+      if (rawRow) {
+        fillFormFromRawRowInto(newInfraForm, rawRow);
+      } else {
+        newInfraStatus.textContent = '';
+        window.alert('Cette infrastructure est introuvable (peut-être supprimée entre-temps) : impossible de la modifier.');
+        closeNewInfraModal();
+      }
+    });
+  }
+
+  // Crée ou modifie une infrastructure, selon currentInfraEditRowId (voir
+  // openNewInfraModal / openEditInfraModal) — même logique que
+  // submitNewRequest (filet de sécurité gristHelper_Display, lecture des
+  // champs par data-role/data-kind).
   function submitNewInfra() {
     var cfg = settings.gestionHebergement;
+    var isEdit = currentInfraEditRowId !== null;
     var inputs = newInfraForm.querySelectorAll('[data-role]');
     var badField = null;
     inputs.forEach(function (el) {
@@ -3715,13 +3876,17 @@
       fields[cfg.col[role]] = value;
     });
 
+    var action = isEdit
+      ? ['UpdateRecord', cfg.table, currentInfraEditRowId, fields]
+      : ['AddRecord', cfg.table, null, fields];
+
     newInfraStatus.textContent = 'Enregistrement…';
-    grist.docApi.applyUserActions([['AddRecord', cfg.table, null, fields]]).then(function () {
+    grist.docApi.applyUserActions([action]).then(function () {
       closeNewInfraModal();
       loadPageData('gestionHebergement');
     }).catch(function (e) {
       newInfraStatus.textContent = '';
-      window.alert('Impossible de créer l’infrastructure : ' + friendlyErrorMessage(e));
+      window.alert((isEdit ? 'Impossible d’enregistrer les modifications : ' : 'Impossible de créer l’infrastructure : ') + friendlyErrorMessage(e));
     });
   }
 
@@ -3735,6 +3900,89 @@
       loadPageData('gestionHebergement');
     }).catch(function (e) {
       window.alert('Impossible de supprimer l’infrastructure : ' + friendlyErrorMessage(e));
+    });
+  }
+
+  // ---- Modale "Ajouter des chambres en lot" ------------------------------
+  // Crée plusieurs infrastructures d'un coup, pour un même Bâtiment et une
+  // même Capacité : une ligne par Chambre saisie (une par ligne dans la
+  // zone de texte). "Chambre" reste une simple zone de texte multi-lignes
+  // (jamais résolue comme colonne Référence, à la différence de
+  // buildRequestFieldHtml) : il s'agit ici de saisir plusieurs valeurs
+  // NOUVELLES d'un coup, pas de choisir une valeur existante.
+
+  function closeNewInfraBulkModal() {
+    newInfraBulkOverlay.hidden = true;
+    newInfraBulkOpenToken++;
+    newInfraBulkForm.reset();
+    newInfraBulkStatus.textContent = '';
+  }
+
+  function openNewInfraBulkModal() {
+    var cfg = settings.gestionHebergement;
+    if (!isPageConfigComplete('gestionHebergement', cfg)) {
+      window.alert('Configurez d’abord la table de cette page (zone Configuration, onglet « Réglages du widget », section « Hébergement ») avant d’ajouter des infrastructures.');
+      return;
+    }
+    newInfraBulkStatus.textContent = '';
+    newInfraBulkBatimentZone.innerHTML = '<p class="fr-text--sm">Chargement…</p>';
+    newInfraBulkCapaciteZone.innerHTML = '';
+    newInfraBulkOverlay.hidden = false;
+    var openToken = ++newInfraBulkOpenToken;
+    loadGristMeta().then(function (meta) {
+      return Promise.all([
+        buildRequestFieldHtml('gestionHebergement', cfg, meta, 'batiment', INFRA_FIELD_LABELS.batiment, 'newinfra_bulk_batiment', true),
+        buildRequestFieldHtml('gestionHebergement', cfg, meta, 'capacite', INFRA_FIELD_LABELS.capacite, 'newinfra_bulk_capacite', true)
+      ]);
+    }).then(function (results) {
+      if (openToken !== newInfraBulkOpenToken) return; // fermée/rouverte entre-temps
+      newInfraBulkBatimentZone.innerHTML = results[0];
+      newInfraBulkCapaciteZone.innerHTML = results[1];
+    });
+  }
+
+  // Crée une infrastructure par ligne non vide de la zone de texte
+  // "Chambres", toutes avec le même Bâtiment et la même Capacité — un
+  // seul appel applyUserActions avec plusieurs AddRecord (plutôt qu'un
+  // appel par chambre), pour que Grist les traite comme un seul lot.
+  function submitNewInfraBulk() {
+    var cfg = settings.gestionHebergement;
+    var batimentEl = newInfraBulkForm.querySelector('[data-role="batiment"]');
+    var capaciteEl = newInfraBulkForm.querySelector('[data-role="capacite"]');
+    if (!isWritableColId(cfg.col.batiment) || !isWritableColId(cfg.col.chambre) || !isWritableColId(cfg.col.capacite)) {
+      window.alert('Un des champs de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+        'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne, puis enregistrez.');
+      return;
+    }
+
+    var chambresLines = newInfraBulkChambresInput.value.split('\n')
+      .map(function (s) { return s.trim(); })
+      .filter(function (s) { return s.length > 0; });
+    if (!chambresLines.length) {
+      window.alert('Indiquez au moins une chambre (une par ligne).');
+      return;
+    }
+
+    var batimentRaw = batimentEl.value;
+    var batimentKind = batimentEl.getAttribute('data-kind');
+    var batimentValue = batimentKind === 'ref' ? (batimentRaw ? parseInt(batimentRaw, 10) : null) : batimentRaw;
+    var capaciteValue = capaciteEl.value ? parseInt(capaciteEl.value, 10) : null;
+
+    var actions = chambresLines.map(function (chambre) {
+      var fields = {};
+      fields[cfg.col.batiment] = batimentValue;
+      fields[cfg.col.chambre] = chambre;
+      fields[cfg.col.capacite] = capaciteValue;
+      return ['AddRecord', cfg.table, null, fields];
+    });
+
+    newInfraBulkStatus.textContent = 'Enregistrement…';
+    grist.docApi.applyUserActions(actions).then(function () {
+      closeNewInfraBulkModal();
+      loadPageData('gestionHebergement');
+    }).catch(function (e) {
+      newInfraBulkStatus.textContent = '';
+      window.alert('Impossible de créer les infrastructures : ' + friendlyErrorMessage(e));
     });
   }
 
@@ -3921,6 +4169,21 @@
     e.preventDefault();
     if (!newInfraForm.checkValidity()) { newInfraForm.reportValidity(); return; }
     submitNewInfra();
+  });
+
+  document.getElementById('ghNewInfraBulkBtn').addEventListener('click', openNewInfraBulkModal);
+  document.getElementById('newInfraBulkCloseBtn').addEventListener('click', closeNewInfraBulkModal);
+  document.getElementById('newInfraBulkCancelBtn').addEventListener('click', closeNewInfraBulkModal);
+  newInfraBulkOverlay.addEventListener('click', function (e) {
+    if (e.target === newInfraBulkOverlay) closeNewInfraBulkModal();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !newInfraBulkOverlay.hidden) closeNewInfraBulkModal();
+  });
+  newInfraBulkForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!newInfraBulkForm.checkValidity()) { newInfraBulkForm.reportValidity(); return; }
+    submitNewInfraBulk();
   });
 
 })();

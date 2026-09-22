@@ -71,11 +71,22 @@
   .fr-header .fr-container { width: 100%; max-width: none; }
   .fr-alert { margin-bottom: 0; }
 
-  .section-title {
+  /* Regroupement des 5 sections de "Réglages du widget" en 3 blocs
+     thématiques (pages de demandes / gestion du parc / hébergement),
+     chacune repliée par défaut dans un accordéon DSFR (voir
+     .fr-accordions-group plus bas dans le HTML) pour raccourcir la page —
+     un badge dans l'intitulé de chaque section indique si elle est déjà
+     configurée (voir updateConfigSectionStatus côté script). */
+  .config-group-title {
     font-weight: 700;
-    text-decoration: underline;
-    margin: 1rem 0 0.5rem;
+    margin: 1.5rem 0 0.75rem;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-mention-grey);
   }
+  .config-group-title:first-child { margin-top: 0; }
+  .fr-accordion__btn .fr-badge { margin-left: 0.75rem; vertical-align: middle; }
 
   /* Menu de navigation principale, dans le header (choix de la page) :
      deux entrées, l'élément actif porte aria-current="page" (le CSS
@@ -596,7 +607,7 @@
     .uv-grid { grid-template-columns: 1fr; }
   }
 
-  .settings-section + .settings-section { margin-top: 2rem; }
+  .fr-accordions-group .fr-accordion + .fr-accordion { margin-top: 0.75rem; }
   .settings-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -933,235 +944,264 @@
          colonnes — inchangé pour les deux premières sections. -->
     <div id="configPanelReglages" hidden>
     <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
-      <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget.</p>
+      <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget. Cliquez sur une section pour la déplier ; le badge indique si elle est déjà configurée.</p>
     </div>
 
     <form id="settingsForm">
-      <div class="settings-section">
-        <p class="section-title">Véhicules — demandes de réservation</p>
-        <div class="settings-grid">
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_table">Table Grist</label>
-            <select class="fr-select" id="veh_table" data-page="vehicules"></select>
+      <p class="config-group-title">Pages de demandes</p>
+      <div class="fr-accordions-group fr-mb-3w">
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="true" aria-controls="accVehicules">Véhicules — demandes de réservation <span class="fr-badge fr-badge--sm" id="vehConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse fr-collapse--expanded" id="accVehicules">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_table">Table Grist</label>
+                <select class="fr-select" id="veh_table" data-page="vehicules"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_demandeur">Demandeur (optionnel)</label>
+                <select class="fr-select" id="veh_col_demandeur" data-page="vehicules" data-role="demandeur"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_objet">Véhicule (optionnel)</label>
+                <select class="fr-select" id="veh_col_objet" data-page="vehicules" data-role="objet"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_dateDebut">Date de début souhaitée</label>
+                <select class="fr-select" id="veh_col_dateDebut" data-page="vehicules" data-role="dateDebut"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_dateFin">Date de fin souhaitée</label>
+                <select class="fr-select" id="veh_col_dateFin" data-page="vehicules" data-role="dateFin"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_motif">Motif / destination</label>
+                <select class="fr-select" id="veh_col_motif" data-page="vehicules" data-role="motif"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_decision">Décision</label>
+                <select class="fr-select" id="veh_col_decision" data-page="vehicules" data-role="decision"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="veh_col_conflit">Conflit (optionnel, case à cocher)</label>
+                <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule.</p>
+            <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
+            <div class="settings-grid">
+              <div class="fr-input-group">
+                <label class="fr-label" for="veh_val_attente">En attente</label>
+                <input class="fr-input" type="text" id="veh_val_attente" value="En attente">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="veh_val_validee">Validée</label>
+                <input class="fr-input" type="text" id="veh_val_validee" value="Validée">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="veh_val_refusee">Refusée</label>
+                <input class="fr-input" type="text" id="veh_val_refusee" value="Refusée">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="veh_val_percu">Perçu</label>
+                <input class="fr-input" type="text" id="veh_val_percu" value="Perçu">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="veh_val_reintegre">Réintégré</label>
+                <input class="fr-input" type="text" id="veh_val_reintegre" value="Réintégré">
+              </div>
+            </div>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_demandeur">Demandeur (optionnel)</label>
-            <select class="fr-select" id="veh_col_demandeur" data-page="vehicules" data-role="demandeur"></select>
+        </section>
+
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accMateriels">Matériels — demandes de réservation <span class="fr-badge fr-badge--sm" id="matConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accMateriels">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_table">Table Grist</label>
+                <select class="fr-select" id="mat_table" data-page="materiels"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_demandeur">Demandeur</label>
+                <select class="fr-select" id="mat_col_demandeur" data-page="materiels" data-role="demandeur"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_objet">Matériel demandé</label>
+                <select class="fr-select" id="mat_col_objet" data-page="materiels" data-role="objet"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_materielAccorde">Matériel accordé (optionnel)</label>
+                <select class="fr-select" id="mat_col_materielAccorde" data-page="materiels" data-role="materielAccorde"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_dateDebut">Date de début souhaitée</label>
+                <select class="fr-select" id="mat_col_dateDebut" data-page="materiels" data-role="dateDebut"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_dateFin">Date de fin souhaitée</label>
+                <select class="fr-select" id="mat_col_dateFin" data-page="materiels" data-role="dateFin"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_motif">Motif</label>
+                <select class="fr-select" id="mat_col_motif" data-page="materiels" data-role="motif"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_decision">Décision</label>
+                <select class="fr-select" id="mat_col_decision" data-page="materiels" data-role="decision"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="mat_col_conflit">Conflit (optionnel, case à cocher)</label>
+                <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Matériel accordé (sous la ressource accordée, le cas échéant) si celle-ci est réglée, sinon dans la colonne Matériel demandé.</p>
+            <p class="fr-hint-text fr-mt-2w">« Matériel accordé » : si réglée, une colonne dédiée s'affiche dans le tableau juste après « Matériel demandé », pour noter ce qui a réellement été remis (s'il diffère de la demande).</p>
+            <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
+            <div class="settings-grid">
+              <div class="fr-input-group">
+                <label class="fr-label" for="mat_val_attente">En attente</label>
+                <input class="fr-input" type="text" id="mat_val_attente" value="En attente">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="mat_val_validee">Validée</label>
+                <input class="fr-input" type="text" id="mat_val_validee" value="Validée">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="mat_val_refusee">Refusée</label>
+                <input class="fr-input" type="text" id="mat_val_refusee" value="Refusée">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="mat_val_percu">Perçu</label>
+                <input class="fr-input" type="text" id="mat_val_percu" value="Perçu">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="mat_val_reintegre">Réintégré</label>
+                <input class="fr-input" type="text" id="mat_val_reintegre" value="Réintégré">
+              </div>
+            </div>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_objet">Véhicule (optionnel)</label>
-            <select class="fr-select" id="veh_col_objet" data-page="vehicules" data-role="objet"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_dateDebut">Date de début souhaitée</label>
-            <select class="fr-select" id="veh_col_dateDebut" data-page="vehicules" data-role="dateDebut"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_dateFin">Date de fin souhaitée</label>
-            <select class="fr-select" id="veh_col_dateFin" data-page="vehicules" data-role="dateFin"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_motif">Motif / destination</label>
-            <select class="fr-select" id="veh_col_motif" data-page="vehicules" data-role="motif"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_decision">Décision</label>
-            <select class="fr-select" id="veh_col_decision" data-page="vehicules" data-role="decision"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="veh_col_conflit">Conflit (optionnel, case à cocher)</label>
-            <select class="fr-select" id="veh_col_conflit" data-page="vehicules" data-role="conflit"></select>
-          </div>
-        </div>
-        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Véhicule.</p>
-        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
-        <div class="settings-grid">
-          <div class="fr-input-group">
-            <label class="fr-label" for="veh_val_attente">En attente</label>
-            <input class="fr-input" type="text" id="veh_val_attente" value="En attente">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="veh_val_validee">Validée</label>
-            <input class="fr-input" type="text" id="veh_val_validee" value="Validée">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="veh_val_refusee">Refusée</label>
-            <input class="fr-input" type="text" id="veh_val_refusee" value="Refusée">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="veh_val_percu">Perçu</label>
-            <input class="fr-input" type="text" id="veh_val_percu" value="Perçu">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="veh_val_reintegre">Réintégré</label>
-            <input class="fr-input" type="text" id="veh_val_reintegre" value="Réintégré">
-          </div>
-        </div>
+        </section>
       </div>
 
-      <div class="settings-section">
-        <p class="section-title">Matériels — demandes de réservation</p>
-        <div class="settings-grid">
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_table">Table Grist</label>
-            <select class="fr-select" id="mat_table" data-page="materiels"></select>
+      <p class="config-group-title">Gestion du parc</p>
+      <div class="fr-accordions-group fr-mb-3w">
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionVehicules">Gérer les véhicules — recensement du parc <span class="fr-badge fr-badge--sm" id="gvConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accGestionVehicules">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="gv_table">Table Grist</label>
+                <select class="fr-select" id="gv_table" data-page="gestionVehicules"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gv_col_identifiant">Identifiant (nom / immatriculation)</label>
+                <select class="fr-select" id="gv_col_identifiant" data-page="gestionVehicules" data-role="identifiant"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gv_col_type">Type de véhicule</label>
+                <select class="fr-select" id="gv_col_type" data-page="gestionVehicules" data-role="type"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gv_col_etat">Disponibilité</label>
+                <select class="fr-select" id="gv_col_etat" data-page="gestionVehicules" data-role="etat"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
+            <div class="settings-grid">
+              <div class="fr-input-group">
+                <label class="fr-label" for="gv_val_disponible">Disponible</label>
+                <input class="fr-input" type="text" id="gv_val_disponible" value="Disponible">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="gv_val_indisponible">Indisponible</label>
+                <input class="fr-input" type="text" id="gv_val_indisponible" value="Indisponible">
+              </div>
+            </div>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_demandeur">Demandeur</label>
-            <select class="fr-select" id="mat_col_demandeur" data-page="materiels" data-role="demandeur"></select>
+        </section>
+
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionMateriels">Gérer le matériel — recensement du parc <span class="fr-badge fr-badge--sm" id="gmConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accGestionMateriels">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="gm_table">Table Grist</label>
+                <select class="fr-select" id="gm_table" data-page="gestionMateriels"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gm_col_identifiant">Identifiant (désignation)</label>
+                <select class="fr-select" id="gm_col_identifiant" data-page="gestionMateriels" data-role="identifiant"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gm_col_type">Catégorie</label>
+                <select class="fr-select" id="gm_col_type" data-page="gestionMateriels" data-role="type"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="gm_col_etat">Disponibilité</label>
+                <select class="fr-select" id="gm_col_etat" data-page="gestionMateriels" data-role="etat"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
+            <div class="settings-grid">
+              <div class="fr-input-group">
+                <label class="fr-label" for="gm_val_disponible">Disponible</label>
+                <input class="fr-input" type="text" id="gm_val_disponible" value="Disponible">
+              </div>
+              <div class="fr-input-group">
+                <label class="fr-label" for="gm_val_indisponible">Indisponible</label>
+                <input class="fr-input" type="text" id="gm_val_indisponible" value="Indisponible">
+              </div>
+            </div>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_objet">Matériel demandé</label>
-            <select class="fr-select" id="mat_col_objet" data-page="materiels" data-role="objet"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_materielAccorde">Matériel accordé (optionnel)</label>
-            <select class="fr-select" id="mat_col_materielAccorde" data-page="materiels" data-role="materielAccorde"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_dateDebut">Date de début souhaitée</label>
-            <select class="fr-select" id="mat_col_dateDebut" data-page="materiels" data-role="dateDebut"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_dateFin">Date de fin souhaitée</label>
-            <select class="fr-select" id="mat_col_dateFin" data-page="materiels" data-role="dateFin"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_motif">Motif</label>
-            <select class="fr-select" id="mat_col_motif" data-page="materiels" data-role="motif"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_decision">Décision</label>
-            <select class="fr-select" id="mat_col_decision" data-page="materiels" data-role="decision"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="mat_col_conflit">Conflit (optionnel, case à cocher)</label>
-            <select class="fr-select" id="mat_col_conflit" data-page="materiels" data-role="conflit"></select>
-          </div>
-        </div>
-        <p class="fr-hint-text fr-mt-2w">Colonne Oui/Non (case à cocher) : si elle est cochée pour une demande, un badge « Conflit » s'affiche dans la colonne Matériel accordé (sous la ressource accordée, le cas échéant) si celle-ci est réglée, sinon dans la colonne Matériel demandé.</p>
-        <p class="fr-hint-text fr-mt-2w">« Matériel accordé » : si réglée, une colonne dédiée s'affiche dans le tableau juste après « Matériel demandé », pour noter ce qui a réellement été remis (s'il diffère de la demande).</p>
-        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Décision (adaptez-les à ceux de votre table) :</p>
-        <div class="settings-grid">
-          <div class="fr-input-group">
-            <label class="fr-label" for="mat_val_attente">En attente</label>
-            <input class="fr-input" type="text" id="mat_val_attente" value="En attente">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="mat_val_validee">Validée</label>
-            <input class="fr-input" type="text" id="mat_val_validee" value="Validée">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="mat_val_refusee">Refusée</label>
-            <input class="fr-input" type="text" id="mat_val_refusee" value="Refusée">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="mat_val_percu">Perçu</label>
-            <input class="fr-input" type="text" id="mat_val_percu" value="Perçu">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="mat_val_reintegre">Réintégré</label>
-            <input class="fr-input" type="text" id="mat_val_reintegre" value="Réintégré">
-          </div>
-        </div>
+        </section>
       </div>
 
-      <div class="settings-section">
-        <p class="section-title">Gérer les véhicules — recensement du parc</p>
-        <div class="settings-grid">
-          <div class="fr-select-group">
-            <label class="fr-label" for="gv_table">Table Grist</label>
-            <select class="fr-select" id="gv_table"></select>
+      <p class="config-group-title">Hébergement</p>
+      <div class="fr-accordions-group fr-mb-3w">
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accOccupants">Hébergement <span class="fr-badge fr-badge--sm" id="occConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accOccupants">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_table">Table Grist</label>
+                <select class="fr-select" id="occ_table" data-page="occupants"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_col_batiment">Bât.</label>
+                <select class="fr-select" id="occ_col_batiment" data-page="occupants" data-role="batiment"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_col_uv">UV</label>
+                <select class="fr-select" id="occ_col_uv" data-page="occupants" data-role="uv"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_col_occupants">Occupants</label>
+                <select class="fr-select" id="occ_col_occupants" data-page="occupants" data-role="occupants"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_col_capacite">Capacité de l’UV (optionnel)</label>
+                <select class="fr-select" id="occ_col_capacite" data-page="occupants" data-role="capacite"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="occ_col_nbOccupants">Nombre d’occupants (optionnel)</label>
+                <select class="fr-select" id="occ_col_nbOccupants" data-page="occupants" data-role="nbOccupants"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">« Bât. » sert à créer un filtre par bâtiment sur la page « Hébergement ». « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
+            <p class="fr-hint-text fr-mt-2w">« Capacité de l’UV » et « Nombre d’occupants » (optionnels, colonnes numériques) : si réglées, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse. Si « Nombre d’occupants » n’est pas réglé, le nombre d’occupants de la colonne « Occupants » est utilisé à la place.</p>
           </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gv_col_identifiant">Identifiant (nom / immatriculation)</label>
-            <select class="fr-select" id="gv_col_identifiant" data-page="gestionVehicules" data-role="identifiant"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gv_col_type">Type de véhicule</label>
-            <select class="fr-select" id="gv_col_type" data-page="gestionVehicules" data-role="type"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gv_col_etat">Disponibilité</label>
-            <select class="fr-select" id="gv_col_etat" data-page="gestionVehicules" data-role="etat"></select>
-          </div>
-        </div>
-        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
-        <div class="settings-grid">
-          <div class="fr-input-group">
-            <label class="fr-label" for="gv_val_disponible">Disponible</label>
-            <input class="fr-input" type="text" id="gv_val_disponible" value="Disponible">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="gv_val_indisponible">Indisponible</label>
-            <input class="fr-input" type="text" id="gv_val_indisponible" value="Indisponible">
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <p class="section-title">Gérer le matériel — recensement du parc</p>
-        <div class="settings-grid">
-          <div class="fr-select-group">
-            <label class="fr-label" for="gm_table">Table Grist</label>
-            <select class="fr-select" id="gm_table"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gm_col_identifiant">Identifiant (désignation)</label>
-            <select class="fr-select" id="gm_col_identifiant" data-page="gestionMateriels" data-role="identifiant"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gm_col_type">Catégorie</label>
-            <select class="fr-select" id="gm_col_type" data-page="gestionMateriels" data-role="type"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="gm_col_etat">Disponibilité</label>
-            <select class="fr-select" id="gm_col_etat" data-page="gestionMateriels" data-role="etat"></select>
-          </div>
-        </div>
-        <p class="fr-hint-text fr-mt-2w">Libellés utilisés dans la colonne Disponibilité (adaptez-les à ceux de votre table) :</p>
-        <div class="settings-grid">
-          <div class="fr-input-group">
-            <label class="fr-label" for="gm_val_disponible">Disponible</label>
-            <input class="fr-input" type="text" id="gm_val_disponible" value="Disponible">
-          </div>
-          <div class="fr-input-group">
-            <label class="fr-label" for="gm_val_indisponible">Indisponible</label>
-            <input class="fr-input" type="text" id="gm_val_indisponible" value="Indisponible">
-          </div>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <p class="section-title">Hébergement</p>
-        <div class="settings-grid">
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_table">Table Grist</label>
-            <select class="fr-select" id="occ_table" data-page="occupants"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_col_batiment">Bât.</label>
-            <select class="fr-select" id="occ_col_batiment" data-page="occupants" data-role="batiment"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_col_uv">UV</label>
-            <select class="fr-select" id="occ_col_uv" data-page="occupants" data-role="uv"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_col_occupants">Occupants</label>
-            <select class="fr-select" id="occ_col_occupants" data-page="occupants" data-role="occupants"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_col_capacite">Capacité de l’UV (optionnel)</label>
-            <select class="fr-select" id="occ_col_capacite" data-page="occupants" data-role="capacite"></select>
-          </div>
-          <div class="fr-select-group">
-            <label class="fr-label" for="occ_col_nbOccupants">Nombre d’occupants (optionnel)</label>
-            <select class="fr-select" id="occ_col_nbOccupants" data-page="occupants" data-role="nbOccupants"></select>
-          </div>
-        </div>
-        <p class="fr-hint-text fr-mt-2w">« Bât. » sert à créer un filtre par bâtiment sur la page « Hébergement ». « Occupants » doit être une colonne Liste de choix (ou Références multiples) : chaque occupant de l’UV s’affiche alors comme un badge séparé.</p>
-        <p class="fr-hint-text fr-mt-2w">« Capacité de l’UV » et « Nombre d’occupants » (optionnels, colonnes numériques) : si réglées, chaque carte UV prend un fond pastel selon l’occupation — orange si un seul occupant, vert si le nombre d’occupants égale la capacité, rouge s’il la dépasse. Si « Nombre d’occupants » n’est pas réglé, le nombre d’occupants de la colonne « Occupants » est utilisé à la place.</p>
+        </section>
       </div>
 
       <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
@@ -1254,6 +1294,7 @@
   var panelSettings = document.getElementById('panelSettings');
   var brandGesture = document.getElementById('brandGesture');
   var closeConfigBtn = document.getElementById('closeConfigBtn');
+  var settingsForm = document.getElementById('settingsForm');
   var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
   var settingsStatusZone = document.getElementById('settingsStatusZone');
@@ -1788,6 +1829,12 @@
     settingsStatusZone.innerHTML = '';
     setConfigTab(tab || 'gestionVehicules');
     fillSettingsForm();
+    // Peint tout de suite les badges "Configurée"/"À compléter" à partir
+    // des derniers réglages enregistrés (settings), sans attendre le
+    // rechargement async des listes de tables/colonnes ci-dessous — évite
+    // que les badges des accordéons restent vides le temps que
+    // refreshTableList() les recalcule depuis le formulaire.
+    ALL_PAGES.forEach(function (pageKey) { paintConfigBadge(pageKey, isPageConfigComplete(pageKey, settings[pageKey])); });
     refreshTableList();
   }
   function closeSettings() {
@@ -1879,6 +1926,7 @@
         var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
         fillSelectWithOptions(sel, allTableIds, settings[pageKey].table, 'Choisir une table…');
         if (sel.value) refreshColumnLists(pageKey, sel.value);
+        else updateConfigSectionStatus(pageKey);
       });
     }).catch(function (e) {
       showSettingsStatus('error', 'Impossible de lister les tables du document : ' + friendlyErrorMessage(e));
@@ -1896,6 +1944,7 @@
         var el = document.getElementById(prefix + 'col_' + role);
         if (el) fillSelectWithOptions(el, [], '', 'Choisir une table d’abord…');
       });
+      updateConfigSectionStatus(pageKey);
       return;
     }
     grist.docApi.fetchTable(tableId).then(function (data) {
@@ -1918,10 +1967,49 @@
         var current = (cfg.table === tableId) ? cfg.col[role] : '';
         fillSelectWithOptions(el, columns, current, optionalRoles.indexOf(role) !== -1 ? '(aucune)' : 'Choisir une colonne…');
       });
+      updateConfigSectionStatus(pageKey);
     }).catch(function (e) {
       showSettingsStatus('error', 'Impossible de lire les colonnes de la table « ' + tableId + ' » : ' + friendlyErrorMessage(e));
     });
   }
+
+  // Badge "Configurée" / "À compléter" dans l'intitulé de chaque accordéon
+  // de "Réglages du widget" (voir #vehConfigStatus etc. dans le HTML).
+  // paintConfigBadge() se contente de peindre un état déjà connu (utilisé
+  // par openSettings() avec les derniers réglages enregistrés, pour un
+  // affichage immédiat) ; computeSectionConfigured() le recalcule en
+  // lisant l'état ACTUEL du formulaire (pas encore enregistré), pour un
+  // retour en direct pendant la saisie — même logique que
+  // isPageConfigComplete(), mais appliquée directement aux <select> plutôt
+  // qu'à un objet cfg déjà construit.
+  function paintConfigBadge(pageKey, configured) {
+    var badge = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'ConfigStatus');
+    if (!badge) return;
+    badge.textContent = configured ? 'Configurée' : 'À compléter';
+    badge.className = 'fr-badge fr-badge--sm ' + (configured ? 'fr-badge--success' : 'fr-badge--warning');
+  }
+  function computeSectionConfigured(pageKey) {
+    var tableEl = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
+    if (!tableEl || !tableEl.value) return false;
+    return PAGE_REQUIRED_COLS[pageKey].every(function (role) {
+      var el = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'col_' + role);
+      return !!(el && el.value);
+    });
+  }
+  function updateConfigSectionStatus(pageKey) {
+    paintConfigBadge(pageKey, computeSectionConfigured(pageKey));
+  }
+  function updateAllConfigSectionStatuses() {
+    ALL_PAGES.forEach(updateConfigSectionStatus);
+  }
+  // Un changement sur N'IMPORTE QUEL sélecteur de table ou de colonne (tous
+  // porteurs de data-page, voir HTML) recalcule aussitôt le badge de la
+  // section concernée — délégué sur le formulaire entier plutôt qu'un
+  // écouteur par champ, pour couvrir aussi les futurs champs sans y penser.
+  settingsForm.addEventListener('change', function (e) {
+    var pk = e.target.getAttribute && e.target.getAttribute('data-page');
+    if (pk) updateConfigSectionStatus(pk);
+  });
 
   ALL_PAGES.forEach(function (pageKey) {
     var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
@@ -1938,6 +2026,7 @@
     grist.setOption('reservationsConfig', next).then(function () {
       settings = next;
       showSettingsStatus('success', 'Paramètres enregistrés.');
+      updateAllConfigSectionStatuses();
       refreshAll();
     }).catch(function (e) {
       showSettingsStatus('error', 'Enregistrement impossible : ' + friendlyErrorMessage(e));

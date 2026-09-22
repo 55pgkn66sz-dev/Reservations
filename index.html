@@ -1198,21 +1198,26 @@
   </div>
 </div>
 
-<!-- Modale "Choisir le matériel accordé" (page Matériels uniquement) :
-     ouverte à la place de la validation directe quand on clique sur
-     "Valider" une demande dont "Matériel accordé" est encore vide (voir
-     openAssignMaterielModal) — réutilise le même habillage que la modale
-     "Nouvelle demande" (.newreq-overlay/.newreq-dialog) pour rester
-     cohérent visuellement, avec un seul champ (le rôle "materielAccorde",
-     construit par buildRequestFieldHtml comme dans l'autre modale) plutôt
-     que le formulaire complet. -->
+<!-- Modale "Choisir..." avant validation, ouverte à la place de la
+     validation directe quand on clique sur "Valider" une demande dont le
+     champ à choisir est encore vide (voir openAssignMaterielModal) —
+     réutilise le même habillage que la modale "Nouvelle demande"
+     (.newreq-overlay/.newreq-dialog) pour rester cohérent visuellement,
+     avec un seul champ plutôt que le formulaire complet. Malgré son nom
+     ("Materiel"), hérité de son premier usage (page Matériels, rôle
+     "materielAccorde"), cette même modale sert désormais aussi à la page
+     Véhicules (rôle "objet" = "Véhicule sollicité", qui n'a pas de rôle
+     "accordé" séparé sur cette page) : titre, texte d'intro et champ
+     construit sont adaptés dynamiquement en JS selon le cas (voir
+     VALIDATION_FILL_ROLE et openAssignMaterielModal) — le contenu ci-
+     dessous n'est qu'un texte par défaut, toujours réécrit à l'ouverture. -->
 <div class="newreq-overlay" id="assignMaterielOverlay" hidden>
   <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="assignMaterielTitle">
     <div class="newreq-dialog__header">
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="assignMaterielCloseBtn" type="button">Fermer</button>
     </div>
     <h1 id="assignMaterielTitle">Choisir le matériel accordé</h1>
-    <p class="fr-text--sm">Cette demande n'a pas encore de matériel accordé. Choisissez celui qui sera remis au demandeur : la demande sera validée avec ce choix.</p>
+    <p class="fr-text--sm" id="assignMaterielIntro">Cette demande n'a pas encore de matériel accordé. Choisissez celui qui sera remis au demandeur : la demande sera validée avec ce choix.</p>
     <form id="assignMaterielForm">
       <div id="assignMaterielBody"></div>
       <p class="fr-hint-text" id="assignMaterielStatus" aria-live="polite"></p>
@@ -1263,6 +1268,13 @@
   // tableau juste après « Matériel demandé » (voir renderDemandePage),
   // absente côté véhicules.
   var MATERIEL_ROLES = ROLES.concat(['materielAccorde']);
+  // Rôle dont la valeur doit être choisie avant de pouvoir valider une
+  // demande (voir openAssignMaterielModal) : "materielAccorde" pour les
+  // matériels — ressource distincte de ce qui a été demandé — ou "objet"
+  // (Véhicule sollicité) pour les véhicules, qui n'ont pas de rôle
+  // "accordé" séparé : le véhicule sollicité EST la ressource réservée,
+  // donc c'est lui qu'on complète s'il est encore vide.
+  var VALIDATION_FILL_ROLE = { vehicules: 'objet', materiels: 'materielAccorde' };
   // Rôles de colonnes des deux pages de gestion du parc (onglets de la zone Configuration).
   var GESTION_ROLES = ['identifiant', 'type', 'etat'];
   // Rôles de colonnes de la page "Occupants par UV" : Bât. (sert à créer
@@ -2481,7 +2493,16 @@
       // d'affectation ; sinon (page véhicules, ou matériels sans colonne
       // "Matériel accordé" réglée), il reste dans la colonne
       // Véhicule/Matériel demandé comme avant.
-      var conflitDetected = hasConflitCol && isConflitChecked(r.conflit);
+      // Tant qu'aucun matériel n'a été accordé (page matériels, colonne
+      // "Matériel accordé" réglée mais encore vide sur cette ligne), le
+      // conflit éventuel porte sur une ressource pas encore choisie : on
+      // ne l'affiche pas, il n'aurait pas de sens pour l'utilisateur (le
+      // futur choix, fait via la modale de validation, sera lui-même
+      // vérifié à ce moment-là). Repli sur "Matériel sollicité" (colonne
+      // "Matériel accordé" non réglée) non concerné : le badge y reste
+      // affiché comme avant.
+      var materielAccordeVide = isMateriels && hasMaterielAccorde && textOfRef(r.materielAccorde) === '';
+      var conflitDetected = hasConflitCol && isConflitChecked(r.conflit) && !materielAccordeVide;
       var conflitBadgeHtml = conflitDetected ? '<br><span class="fr-badge fr-badge--warning fr-badge--sm">Conflit</span>' : '';
       var conflitInAccordeCol = isMateriels && hasMaterielAccorde;
       // Carte mobile uniquement : le badge est affiché à côté des icônes
@@ -2588,15 +2609,18 @@
           openEditRequestModal(pageKey, rowId);
           return;
         }
-        // Une demande de matériel dont le "Matériel accordé" est encore
-        // vide ne peut pas être validée sans préciser ce qui est accordé :
-        // on ouvre la modale dédiée (qui validera elle-même la demande
-        // avec le choix fait) plutôt que d'appeler updateDecision ici.
-        if (action === 'validee' && hasMaterielAccorde) {
+        // Une demande dont le champ à choisir avant validation (voir
+        // VALIDATION_FILL_ROLE — "Matériel accordé" côté matériels,
+        // "Véhicule sollicité" côté véhicules) est encore vide ne peut pas
+        // être validée directement : on ouvre la modale dédiée (qui
+        // validera elle-même la demande avec le choix fait) plutôt que
+        // d'appeler updateDecision ici.
+        var fillRole = VALIDATION_FILL_ROLE[pageKey];
+        if (action === 'validee' && fillRole && cfg.col[fillRole]) {
           var rowRec = (pageData[pageKey].rows || []).find(function (rr) { return rr.id === rowId; });
-          var currentlyEmpty = !rowRec || textOfRef(rowRec.materielAccorde) === '';
+          var currentlyEmpty = !rowRec || textOfRef(rowRec[fillRole]) === '';
           if (currentlyEmpty) {
-            openAssignMaterielModal(pageKey, rowId);
+            openAssignMaterielModal(pageKey, rowId, fillRole);
             return;
           }
         }
@@ -3029,6 +3053,8 @@
   // demande de matériel, pas par "Nouvelle demande"/"Éditer").
   var assignMaterielOverlay = document.getElementById('assignMaterielOverlay');
   var assignMaterielForm = document.getElementById('assignMaterielForm');
+  var assignMaterielTitle = document.getElementById('assignMaterielTitle');
+  var assignMaterielIntro = document.getElementById('assignMaterielIntro');
   var assignMaterielBody = document.getElementById('assignMaterielBody');
   var assignMaterielStatus = document.getElementById('assignMaterielStatus');
   var assignMaterielConflictZone = document.getElementById('assignMaterielConflictZone');
@@ -3037,6 +3063,11 @@
   var assignMaterielCloseBtn = document.getElementById('assignMaterielCloseBtn');
   var currentAssignMaterielPage = null;
   var currentAssignMaterielRowId = null;
+  // Rôle à renseigner pour l'ouverture en cours ("materielAccorde" ou
+  // "objet", voir VALIDATION_FILL_ROLE) et son libellé associé, retenus
+  // pour submitAssignMateriel (écriture) et les messages d'erreur.
+  var currentAssignMaterielRole = null;
+  var currentAssignMaterielFieldLabel = '';
 
   function closeNewRequestModal() {
     newRequestOverlay.hidden = true;
@@ -3344,12 +3375,14 @@
     });
   }
 
-  // Referme la modale "Choisir le matériel accordé" et remet son état à
-  // zéro (voir closeNewRequestModal, même logique).
+  // Referme la modale "Choisir..." et remet son état à zéro (voir
+  // closeNewRequestModal, même logique).
   function closeAssignMaterielModal() {
     assignMaterielOverlay.hidden = true;
     currentAssignMaterielPage = null;
     currentAssignMaterielRowId = null;
+    currentAssignMaterielRole = null;
+    currentAssignMaterielFieldLabel = '';
     assignMaterielForm.reset();
     assignMaterielStatus.textContent = '';
     assignMaterielConflictZone.innerHTML = '';
@@ -3358,59 +3391,75 @@
   }
 
   // Ouverte à la place d'une validation directe (voir le gestionnaire de
-  // clic dans renderDemandePage) quand la demande n'a pas encore de
-  // "Matériel accordé" : demande de choisir le matériel, puis valide la
-  // demande avec ce choix en une seule fois (voir submitAssignMateriel).
-  function openAssignMaterielModal(pageKey, rowId) {
+  // clic dans renderDemandePage) quand le champ à choisir avant validation
+  // (fillRole, voir VALIDATION_FILL_ROLE — "materielAccorde" côté
+  // matériels, "objet" côté véhicules) est encore vide sur cette demande :
+  // demande de le choisir, puis valide la demande avec ce choix en une
+  // seule fois (voir submitAssignMateriel). Titre, texte d'intro et champ
+  // affiché s'adaptent au cas.
+  function openAssignMaterielModal(pageKey, rowId, fillRole) {
     var cfg = settings[pageKey];
     currentAssignMaterielPage = pageKey;
     currentAssignMaterielRowId = rowId;
+    currentAssignMaterielRole = fillRole;
     assignMaterielStatus.textContent = '';
     assignMaterielConflictZone.innerHTML = '';
     assignMaterielSubmitBtn.hidden = false;
     assignMaterielCancelBtn.textContent = 'Annuler';
 
-    // Rappel du matériel sollicité (rôle "objet") avant le champ de
-    // sélection du matériel accordé, pour choisir en connaissance de
-    // cause — connu synchroniquement via pageData, pas besoin d'attendre
-    // buildRequestFieldHtml pour l'afficher.
-    var rowRec = (pageData[pageKey].rows || []).find(function (rr) { return rr.id === rowId; });
-    var objetText = rowRec ? textOfRef(rowRec.objet) : '';
-    var objetReminderHtml = '<p class="fr-text--sm">Matériel sollicité : <strong>' +
-      (objetText ? escapeHtml(objetText) : 'non renseigné') + '</strong></p>';
+    // Côté véhicules (fillRole "objet"), il n'existe pas de rôle "accordé"
+    // séparé : le champ rempli ici EST le véhicule sollicité, donc aucun
+    // rappel à afficher. Côté matériels (fillRole "materielAccorde"),
+    // rappel du matériel sollicité (rôle "objet", déjà connu via pageData,
+    // pas besoin d'attendre buildRequestFieldHtml pour l'afficher).
+    var isVehiculeObjet = fillRole === 'objet';
+    currentAssignMaterielFieldLabel = isVehiculeObjet ? 'Véhicule' : 'Matériel accordé';
+    assignMaterielTitle.textContent = isVehiculeObjet ? 'Choisir le véhicule' : 'Choisir le matériel accordé';
+    assignMaterielIntro.textContent = isVehiculeObjet
+      ? 'Cette demande n’indique pas encore de véhicule. Choisissez celui qui sera réservé : la demande sera validée avec ce choix.'
+      : 'Cette demande n’a pas encore de matériel accordé. Choisissez celui qui sera remis au demandeur : la demande sera validée avec ce choix.';
 
-    assignMaterielBody.innerHTML = objetReminderHtml + '<p class="fr-text--sm">Chargement du formulaire…</p>';
+    var reminderHtml = '';
+    if (!isVehiculeObjet) {
+      var rowRec = (pageData[pageKey].rows || []).find(function (rr) { return rr.id === rowId; });
+      var objetText = rowRec ? textOfRef(rowRec.objet) : '';
+      reminderHtml = '<p class="fr-text--sm">Matériel sollicité : <strong>' +
+        (objetText ? escapeHtml(objetText) : 'non renseigné') + '</strong></p>';
+    }
+
+    assignMaterielBody.innerHTML = reminderHtml + '<p class="fr-text--sm">Chargement du formulaire…</p>';
     assignMaterielOverlay.hidden = false;
     loadGristMeta().then(function (meta) {
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return; // fermé/changé entre-temps
-      return buildRequestFieldHtml(pageKey, cfg, meta, 'materielAccorde', 'Matériel accordé', 'assignMaterielInput', true, '');
+      return buildRequestFieldHtml(pageKey, cfg, meta, fillRole, currentAssignMaterielFieldLabel, 'assignMaterielInput', true, '');
     }).then(function (html) {
       if (!html) return; // fermé/changé entre-temps (cf. ci-dessus)
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return;
-      assignMaterielBody.innerHTML = objetReminderHtml + html;
+      assignMaterielBody.innerHTML = reminderHtml + html;
     }).catch(function (e) {
       if (currentAssignMaterielPage !== pageKey || currentAssignMaterielRowId !== rowId) return;
-      assignMaterielBody.innerHTML = objetReminderHtml;
+      assignMaterielBody.innerHTML = reminderHtml;
       assignMaterielStatus.textContent = 'Impossible de charger le formulaire : ' + friendlyErrorMessage(e);
     });
   }
 
-  // Soumission de la modale "Choisir le matériel accordé" : écrit en une
-  // seule action à la fois le matériel choisi ET la décision "Validée"
-  // (plutôt que deux actions séparées, pour que Grist les applique de
-  // façon atomique), puis relit la ligne pour savoir si ce choix crée un
-  // conflit (colonne "Conflit", calculée côté document Grist, pas par ce
-  // widget) et l'affiche avant de fermer la modale — conformément à la
-  // demande : "Afficher l'éventuel conflit avant de fermer la modale."
+  // Soumission de la modale "Choisir..." : écrit en une seule action à la
+  // fois la valeur choisie (fillRole) ET la décision "Validée" (plutôt que
+  // deux actions séparées, pour que Grist les applique de façon atomique),
+  // puis relit la ligne pour savoir si ce choix crée un conflit (colonne
+  // "Conflit", calculée côté document Grist, pas par ce widget) et
+  // l'affiche avant de fermer la modale — conformément à la demande :
+  // "Afficher l'éventuel conflit avant de fermer la modale."
   function submitAssignMateriel(e) {
     e.preventDefault();
-    if (!currentAssignMaterielPage || currentAssignMaterielRowId === null) return;
+    if (!currentAssignMaterielPage || currentAssignMaterielRowId === null || !currentAssignMaterielRole) return;
     var pageKey = currentAssignMaterielPage;
     var rowId = currentAssignMaterielRowId;
+    var fillRole = currentAssignMaterielRole;
     var cfg = settings[pageKey];
 
-    if (!isWritableColId(cfg.col.materielAccorde)) {
-      window.alert('Le champ « Matériel accordé » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
+    if (!isWritableColId(cfg.col[fillRole])) {
+      window.alert('Le champ « ' + currentAssignMaterielFieldLabel + ' » de cette page pointe vers une colonne technique de Grist (gristHelper_Display), qui ne peut pas être modifiée. ' +
         'Ouvrez la Configuration (5 clics sur le logo) → Réglages du widget, choisissez la vraie colonne pour ce champ, puis enregistrez.');
       return;
     }
@@ -3420,14 +3469,18 @@
       return;
     }
 
-    var input = assignMaterielForm.querySelector('[data-role="materielAccorde"]');
+    var input = assignMaterielForm.querySelector('[data-role="' + fillRole + '"]');
     var raw = input ? input.value : '';
     var kind = input ? input.getAttribute('data-kind') : null;
     var value = kind === 'ref' ? (raw ? parseInt(raw, 10) : null) : raw;
 
     var fields = {};
-    fields[cfg.col.materielAccorde] = value;
+    fields[cfg.col[fillRole]] = value;
     fields[cfg.col.decision] = cfg.valeurs.validee;
+
+    // Nom générique de la ressource, pour les messages ("matériel" ou
+    // "véhicule" selon le rôle rempli).
+    var resourceNoun = fillRole === 'objet' ? 'véhicule' : 'matériel';
 
     assignMaterielStatus.textContent = 'Enregistrement…';
     assignMaterielSubmitBtn.disabled = true;
@@ -3451,7 +3504,7 @@
         if (conflit) {
           assignMaterielStatus.textContent = '';
           assignMaterielConflictZone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
-            '<p>La demande a bien été validée avec le matériel choisi, mais un conflit a été détecté (ce matériel est probablement déjà réservé sur une période qui chevauche celle-ci). Vérifiez le planning et ajustez si besoin.</p></div>';
+            '<p>La demande a bien été validée avec le ' + resourceNoun + ' choisi, mais un conflit a été détecté (ce ' + resourceNoun + ' est probablement déjà réservé sur une période qui chevauche celle-ci). Vérifiez le planning et ajustez si besoin.</p></div>';
           assignMaterielSubmitBtn.hidden = true;
           assignMaterielCancelBtn.textContent = 'Fermer';
         } else {

@@ -776,6 +776,9 @@
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="vehReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
         Actualiser
       </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-settings-5-line" id="vehGestionBtn" type="button" title="Gérer les véhicules">
+        <span class="fr-sr-only">Gérer les véhicules</span>
+      </button>
       <p class="req-count req-count--push" id="vehCount"></p>
     </div>
 
@@ -808,6 +811,9 @@
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="matReloadBtn" type="button" title="Recharger les demandes depuis la table Grist">
         Actualiser
       </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-settings-5-line" id="matGestionBtn" type="button" title="Gérer le matériel">
+        <span class="fr-sr-only">Gérer le matériel</span>
+      </button>
       <p class="req-count req-count--push" id="matCount"></p>
     </div>
 
@@ -839,6 +845,9 @@
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="occReloadBtn" type="button" title="Recharger les occupants depuis la table Grist">
         Actualiser
       </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-settings-5-line" id="occGestionBtn" type="button" title="Gérer les infrastructures d'hébergement">
+        <span class="fr-sr-only">Gérer les infrastructures d'hébergement</span>
+      </button>
       <p class="req-count req-count--push" id="occCount"></p>
       <button class="fr-btn fr-btn--sm fr-icon-download-line fr-btn--icon-left" id="occGeneratePdfBtn" type="button">
         Télécharger les affiches
@@ -858,117 +867,111 @@
     <div id="occZone"></div>
   </div>
 
-  <!-- Zone "Configuration" : regroupe, derrière le geste caché sur le bloc
-       marque (5 clics rapides), la gestion du parc (véhicules / matériel)
-       et les réglages du widget, choisis via un contrôle segmenté — le
-       menu principal ci-dessus ne garde que les deux pages de demandes. -->
+  <!-- Pages "Gérer…" : chacune s'ouvre directement depuis le bouton "roue
+       crantée" de la page de demandes / d'hébergement concernée (voir
+       vehGestionBtn/matGestionBtn/occGestionBtn plus haut et
+       openGestionPanel côté script) — ce ne sont plus des sous-onglets de
+       la zone Configuration : seuls les Réglages du widget restent
+       derrière le geste caché (5 clics sur le bloc marque, voir
+       panelSettings plus bas), la gestion courante du parc/hébergement
+       étant d'un usage plus fréquent que le paramétrage. -->
+
+  <!-- Gérer les véhicules : recensement du parc (disponible / indisponible),
+       indépendant des demandes de réservation. -->
+  <div id="panelGestionVehicules" hidden>
+    <div class="config-header">
+      <h2 class="fr-h6">Gérer les véhicules</h2>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeGestionVehiculesBtn" type="button">Fermer</button>
+    </div>
+    <div class="req-toolbar fr-mb-2w">
+      <div class="dropdown-menu" id="gvFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvFilterList">
+          Disponibilité
+        </button>
+        <ul class="dropdown-menu__list" id="gvFilterList" role="menu" aria-label="Filtrer les véhicules par disponibilité" hidden></ul>
+      </div>
+      <div class="dropdown-menu" id="gvTypeFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvTypeFilterList">
+          Type de véhicule
+        </button>
+        <ul class="dropdown-menu__list" id="gvTypeFilterList" role="menu" aria-label="Filtrer les véhicules par type" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="gvCount"></p>
+    </div>
+    <div id="gvZone"></div>
+  </div>
+
+  <!-- Gérer le matériel : même principe, catégorie au lieu de type. -->
+  <div id="panelGestionMateriels" hidden>
+    <div class="config-header">
+      <h2 class="fr-h6">Gérer le matériel</h2>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeGestionMaterielsBtn" type="button">Fermer</button>
+    </div>
+    <div class="req-toolbar fr-mb-2w">
+      <div class="dropdown-menu" id="gmFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmFilterList">
+          Disponibilité
+        </button>
+        <ul class="dropdown-menu__list" id="gmFilterList" role="menu" aria-label="Filtrer le matériel par disponibilité" hidden></ul>
+      </div>
+      <div class="dropdown-menu" id="gmTypeFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmTypeFilterList">
+          Catégorie
+        </button>
+        <ul class="dropdown-menu__list" id="gmTypeFilterList" role="menu" aria-label="Filtrer le matériel par catégorie" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="gmCount"></p>
+    </div>
+    <div id="gmZone"></div>
+  </div>
+
+  <!-- Gérer les infrastructures d'hébergement : recensement des UV
+       (Bâtiment, Chambre, Capacité), avec ajout (unitaire ou en lot) et
+       suppression — à la différence des deux pages ci-dessus (qui ne font
+       que basculer une disponibilité), celle-ci permet de créer et
+       supprimer des lignes (voir renderInfraPage). Pas de filtre ici : la
+       liste reste simple. -->
+  <div id="panelGestionHebergement" hidden>
+    <div class="config-header">
+      <h2 class="fr-h6">Gérer les infrastructures d’hébergement</h2>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeGestionHebergementBtn" type="button">Fermer</button>
+    </div>
+    <div class="req-toolbar fr-mb-2w">
+      <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="ghNewInfraBtn" type="button">
+        Nouvelle infrastructure
+      </button>
+      <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-stack-line fr-btn--icon-left" id="ghNewInfraBulkBtn" type="button" title="Ajouter plusieurs chambres d’un même bâtiment en une fois">
+        Ajouter en lot
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="ghReloadBtn" type="button" title="Recharger les infrastructures depuis la table Grist">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="ghCount"></p>
+    </div>
+    <div id="ghZone"></div>
+  </div>
+
+  <!-- Réglages du widget : isolés derrière le geste caché (5 clics rapides
+       sur le bloc marque) — la gestion courante du parc/hébergement
+       ci-dessus n'y vit plus, voir la note en tête de section. -->
   <div id="panelSettings" hidden>
     <div class="config-header">
-      <h2 class="fr-h6">Configuration</h2>
+      <h2 class="fr-h6">Réglages du widget</h2>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeConfigBtn" type="button">Fermer</button>
     </div>
-
-    <div class="fr-segmented fr-segmented--sm fr-mb-3w">
-      <div class="fr-segmented__elements">
-        <div class="fr-segmented__element">
-          <input type="radio" id="configTabGestionVehicules" name="configTab" value="gestionVehicules" checked>
-          <label class="fr-label" for="configTabGestionVehicules">Gérer les véhicules</label>
-        </div>
-        <div class="fr-segmented__element">
-          <input type="radio" id="configTabGestionMateriels" name="configTab" value="gestionMateriels">
-          <label class="fr-label" for="configTabGestionMateriels">Gérer le matériel</label>
-        </div>
-        <div class="fr-segmented__element">
-          <input type="radio" id="configTabGestionHebergement" name="configTab" value="gestionHebergement">
-          <label class="fr-label" for="configTabGestionHebergement">Gérer les infrastructures d’hébergement</label>
-        </div>
-        <div class="fr-segmented__element">
-          <input type="radio" id="configTabReglages" name="configTab" value="reglages">
-          <label class="fr-label" for="configTabReglages">Réglages du widget</label>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sous-onglet "Gérer les véhicules" : recensement du parc (disponible
-         / indisponible), indépendant des demandes de réservation. -->
-    <div id="configPanelGestionVehicules">
-      <div class="req-toolbar fr-mb-2w">
-        <div class="dropdown-menu" id="gvFilterMenu">
-          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvFilterList">
-            Disponibilité
-          </button>
-          <ul class="dropdown-menu__list" id="gvFilterList" role="menu" aria-label="Filtrer les véhicules par disponibilité" hidden></ul>
-        </div>
-        <div class="dropdown-menu" id="gvTypeFilterMenu">
-          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gvTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gvTypeFilterList">
-            Type de véhicule
-          </button>
-          <ul class="dropdown-menu__list" id="gvTypeFilterList" role="menu" aria-label="Filtrer les véhicules par type" hidden></ul>
-        </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gvRefreshBtn" type="button">
-          Réinitialiser le(s) filtre(s)
-        </button>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gvReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
-          Actualiser
-        </button>
-        <p class="req-count req-count--push" id="gvCount"></p>
-      </div>
-      <div id="gvZone"></div>
-    </div>
-
-    <!-- Sous-onglet "Gérer le matériel" : même principe, catégorie au lieu
-         de type. -->
-    <div id="configPanelGestionMateriels" hidden>
-      <div class="req-toolbar fr-mb-2w">
-        <div class="dropdown-menu" id="gmFilterMenu">
-          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmFilterList">
-            Disponibilité
-          </button>
-          <ul class="dropdown-menu__list" id="gmFilterList" role="menu" aria-label="Filtrer le matériel par disponibilité" hidden></ul>
-        </div>
-        <div class="dropdown-menu" id="gmTypeFilterMenu">
-          <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="gmTypeFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="gmTypeFilterList">
-            Catégorie
-          </button>
-          <ul class="dropdown-menu__list" id="gmTypeFilterList" role="menu" aria-label="Filtrer le matériel par catégorie" hidden></ul>
-        </div>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="gmRefreshBtn" type="button">
-          Réinitialiser le(s) filtre(s)
-        </button>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="gmReloadBtn" type="button" title="Recharger le parc depuis la table Grist">
-          Actualiser
-        </button>
-        <p class="req-count req-count--push" id="gmCount"></p>
-      </div>
-      <div id="gmZone"></div>
-    </div>
-
-    <!-- Sous-onglet "Gérer les infrastructures d'hébergement" : recensement
-         des UV (Bâtiment, Chambre, Capacité), avec ajout et suppression —
-         à la différence des deux sous-onglets ci-dessus (qui ne font que
-         basculer une disponibilité), cette page permet de créer et
-         supprimer des lignes (voir renderInfraPage / "Nouvelle
-         infrastructure"). Pas de filtre ici : la liste reste simple. -->
-    <div id="configPanelGestionHebergement" hidden>
-      <div class="req-toolbar fr-mb-2w">
-        <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="ghNewInfraBtn" type="button">
-          Nouvelle infrastructure
-        </button>
-        <button class="fr-btn fr-btn--secondary fr-btn--sm fr-icon-stack-line fr-btn--icon-left" id="ghNewInfraBulkBtn" type="button" title="Ajouter plusieurs chambres d’un même bâtiment en une fois">
-          Ajouter en lot
-        </button>
-        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="ghReloadBtn" type="button" title="Recharger les infrastructures depuis la table Grist">
-          Actualiser
-        </button>
-        <p class="req-count req-count--push" id="ghCount"></p>
-      </div>
-      <div id="ghZone"></div>
-    </div>
-
-    <!-- Sous-onglet "Réglages du widget" : mapping des tables Grist (2
-         pages de demandes + 3 pages de gestion du parc / hébergement) et
-         de leurs colonnes — inchangé pour les sections déjà existantes. -->
-    <div id="configPanelReglages" hidden>
+    <div id="configPanelReglages">
     <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
       <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget. Cliquez sur une section pour la déplier ; le badge indique si elle est déjà configurée.</p>
     </div>
@@ -1581,6 +1584,11 @@
       else NAV_ELS[v].removeAttribute('aria-current');
     });
     panelSettings.hidden = true;
+    // Sécurité symétrique à celle d'openSettings : un clic sur le menu
+    // principal referme aussi un panneau "Gérer…" resté ouvert.
+    if (typeof GESTION_PANEL_EL !== 'undefined') {
+      Object.keys(GESTION_PANEL_EL).forEach(function (key) { GESTION_PANEL_EL[key].hidden = true; });
+    }
     NAV_PAGES.forEach(function (v) { NAV_PANELS[v].hidden = (v !== view); });
   }
 
@@ -1926,41 +1934,23 @@
     if (btn) btn.addEventListener('click', function () { loadPageData(pageKey); });
   });
 
-  // ---- Zone "Configuration" (geste caché) --------------------------------
-  // Regroupe, derrière le même geste qu'avant, les deux pages de gestion
-  // du parc et les réglages du widget, choisis via un contrôle segmenté
-  // (fr-segmented) plutôt que par des onglets séparés du menu principal.
+  // ---- Zone "Réglages du widget" (geste caché) ---------------------------
+  // Depuis la demande "isole les réglages du widget", panelSettings ne
+  // contient plus QUE configPanelReglages : les trois pages de gestion du
+  // parc/hébergement (autrefois des onglets de cette même zone, choisis via
+  // un contrôle segmenté fr-segmented) ont leur propre panneau autonome,
+  // ouvert directement depuis le bouton "roue crantée" de la page de
+  // demandes/d'hébergement concernée — voir openGestionPanel ci-dessous.
 
-  var configTabPanels = {
-    gestionVehicules: document.getElementById('configPanelGestionVehicules'),
-    gestionMateriels: document.getElementById('configPanelGestionMateriels'),
-    gestionHebergement: document.getElementById('configPanelGestionHebergement'),
-    reglages: document.getElementById('configPanelReglages')
-  };
-  var configTabRadios = {
-    gestionVehicules: document.getElementById('configTabGestionVehicules'),
-    gestionMateriels: document.getElementById('configTabGestionMateriels'),
-    gestionHebergement: document.getElementById('configTabGestionHebergement'),
-    reglages: document.getElementById('configTabReglages')
-  };
-  function setConfigTab(tab) {
-    Object.keys(configTabPanels).forEach(function (key) {
-      configTabPanels[key].hidden = (key !== tab);
-    });
-    if (configTabRadios[tab]) configTabRadios[tab].checked = true;
-  }
-  Object.keys(configTabRadios).forEach(function (tab) {
-    configTabRadios[tab].addEventListener('change', function () {
-      if (this.checked) setConfigTab(tab);
-    });
-  });
-
-  function openSettings(tab) {
+  function openSettings() {
     viewBeforeSettings = currentView;
     NAV_PAGES.forEach(function (v) { NAV_PANELS[v].hidden = true; });
+    // Sécurité : referme aussi un éventuel panneau "Gérer…" resté ouvert
+    // (le geste caché du bloc marque reste cliquable quelle que soit la
+    // page affichée), pour qu'un seul panneau ne soit jamais visible à la fois.
+    Object.keys(GESTION_PANEL_EL).forEach(function (key) { GESTION_PANEL_EL[key].hidden = true; });
     panelSettings.hidden = false;
     settingsStatusZone.innerHTML = '';
-    setConfigTab(tab || 'gestionVehicules');
     fillSettingsForm();
     // Peint tout de suite les badges "Configurée"/"À compléter" à partir
     // des derniers réglages enregistrés (settings), sans attendre le
@@ -1976,6 +1966,43 @@
   }
   cancelSettingsBtn.addEventListener('click', closeSettings);
   closeConfigBtn.addEventListener('click', closeSettings);
+
+  // ---- Panneaux "Gérer…" (véhicules / matériel / hébergement) -----------
+  // Accessibles directement depuis le bouton "roue crantée" de la page de
+  // demandes/d'hébergement concernée (vehGestionBtn/matGestionBtn/
+  // occGestionBtn), sans passer par le geste caché — seuls les réglages du
+  // widget restent derrière celui-ci.
+  var viewBeforeGestion = 'vehicules';
+  var GESTION_PANEL_EL = {
+    gestionVehicules: document.getElementById('panelGestionVehicules'),
+    gestionMateriels: document.getElementById('panelGestionMateriels'),
+    gestionHebergement: document.getElementById('panelGestionHebergement')
+  };
+  function openGestionPanel(pageKey) {
+    viewBeforeGestion = currentView;
+    NAV_PAGES.forEach(function (v) { NAV_PANELS[v].hidden = true; });
+    panelSettings.hidden = true;
+    Object.keys(GESTION_PANEL_EL).forEach(function (key) {
+      GESTION_PANEL_EL[key].hidden = (key !== pageKey);
+    });
+    loadPageData(pageKey);
+  }
+  function closeGestionPanel() {
+    Object.keys(GESTION_PANEL_EL).forEach(function (key) { GESTION_PANEL_EL[key].hidden = true; });
+    setView(viewBeforeGestion);
+  }
+  var vehGestionBtn = document.getElementById('vehGestionBtn');
+  var matGestionBtn = document.getElementById('matGestionBtn');
+  var occGestionBtn = document.getElementById('occGestionBtn');
+  var closeGestionVehiculesBtn = document.getElementById('closeGestionVehiculesBtn');
+  var closeGestionMaterielsBtn = document.getElementById('closeGestionMaterielsBtn');
+  var closeGestionHebergementBtn = document.getElementById('closeGestionHebergementBtn');
+  if (vehGestionBtn) vehGestionBtn.addEventListener('click', function () { openGestionPanel('gestionVehicules'); });
+  if (matGestionBtn) matGestionBtn.addEventListener('click', function () { openGestionPanel('gestionMateriels'); });
+  if (occGestionBtn) occGestionBtn.addEventListener('click', function () { openGestionPanel('gestionHebergement'); });
+  if (closeGestionVehiculesBtn) closeGestionVehiculesBtn.addEventListener('click', closeGestionPanel);
+  if (closeGestionMaterielsBtn) closeGestionMaterielsBtn.addEventListener('click', closeGestionPanel);
+  if (closeGestionHebergementBtn) closeGestionHebergementBtn.addEventListener('click', closeGestionPanel);
 
   // ---- Accès à la configuration : geste caché sur le bloc marque --------
   //

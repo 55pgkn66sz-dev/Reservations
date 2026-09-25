@@ -347,26 +347,17 @@
   .uv-card__occupants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .uv-card__empty { color: var(--text-mention-grey); font-size: 0.9em; font-style: italic; }
 
-  .doc-group + .doc-group { margin-top: 1.5rem; }
-  .doc-group__title { margin: 0 0 0.75rem; font-size: 1.05em; font-weight: 700; }
-  .doc-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
-    gap: 1rem;
+  .doc-table-wrap { overflow-x: auto; border: 1px solid var(--border-default-grey); border-radius: 0.5rem; background: #fff; }
+  .doc-table { width: 100%; border-collapse: collapse; }
+  .doc-table th, .doc-table td { padding: 0.5rem 0.8rem; text-align: left; vertical-align: middle; border-top: 1px solid var(--border-default-grey); }
+  .doc-table thead th {
+    background: #f7f7fb; border-top: none;
+    font-size: 0.75em; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-mention-grey);
   }
-  .doc-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    border: 1px solid var(--border-default-grey);
-    border-radius: 0.5rem;
-    background: #fff;
-    padding: 1rem;
-  }
-  .doc-card__title { margin: 0; font-size: 1em; font-weight: 700; overflow-wrap: anywhere; }
-  .doc-card__desc { margin: 0; font-size: 0.9em; color: var(--text-mention-grey); overflow-wrap: anywhere; }
-  .doc-card__badge { align-self: flex-start; }
-  .doc-card__actions { margin-top: auto; padding-top: 0.5rem; }
+  .doc-table__name { font-weight: 700; }
+  .doc-table tbody tr:hover td { background: #f6f6fb; }
+  .doc-table__actions { white-space: nowrap; text-align: right !important; }
+  .doc-table__actions .fr-btn { padding: 0.25rem 0.4rem; min-height: 0; }
 
   /* ---- Cartes de demande (pages "Véhicules" / "Matériels", voir
      renderDemandePage) : affichées uniquement en dessous de 40rem, à la
@@ -626,7 +617,6 @@
     .newreq-dialog__footer .newreq-delete-btn { margin-right: 0; margin-top: 0.75rem; }
 
     .uv-grid { grid-template-columns: 1fr; }
-    .doc-grid { grid-template-columns: 1fr; }
   }
 
   .fr-accordions-group .fr-accordion + .fr-accordion { margin-top: 0.75rem; }
@@ -3454,7 +3444,6 @@
 
   var DOCUMENTS_TABLE = 'Documents';
   var DOCUMENTS_COLS = { titre: 'Titre', categorie: 'Categorie', description: 'Description', pj: 'PJ' };
-  var DOC_UNCATEGORIZED = 'Autres documents';
   var documentSearchText = '';
 
   function formatFileSize(bytes) {
@@ -3547,39 +3536,28 @@
       return;
     }
 
-    var groups = {};
-    var groupOrder = [];
-    rows.forEach(function (r) {
-      var cat = textOfRef(r.categorie) || DOC_UNCATEGORIZED;
-      if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
-      groups[cat].push(r);
-    });
-    groupOrder.sort(function (a, b) {
-      if (a === DOC_UNCATEGORIZED) return 1;
-      if (b === DOC_UNCATEGORIZED) return -1;
-      return a.localeCompare(b, 'fr');
-    });
+    var withCat = rows.some(function (r) { return textOfRef(r.categorie); });
+    var withDesc = rows.some(function (r) { return textOf(r.description); });
+    rows.sort(function (a, b) { return a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' }); });
 
-    zone.innerHTML = groupOrder.map(function (cat) {
-      var cards = groups[cat].slice().sort(function (a, b) {
-        return a.titre.localeCompare(b.titre, 'fr');
-      }).map(function (r) {
-        var desc = textOf(r.description);
-        var size = formatFileSize(r.size);
-        return '<div class="doc-card">' +
-          '<h4 class="doc-card__title">' + escapeHtml(r.titre) + '</h4>' +
-          '<p class="doc-card__desc">' + escapeHtml(r.fileName) + (size ? ' · ' + size : '') + '</p>' +
-          (desc ? '<p class="doc-card__desc">' + escapeHtml(desc) + '</p>' : '') +
-          '<div class="doc-card__actions">' +
-          '<a class="fr-btn fr-btn--sm fr-icon-download-line fr-btn--icon-right" href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(r.fileName) + '">Télécharger</a>' +
-          '</div>' +
-          '</div>';
-      }).join('');
-      return '<section class="doc-group">' +
-        '<h3 class="doc-group__title">' + escapeHtml(cat) + '</h3>' +
-        '<div class="doc-grid">' + cards + '</div>' +
-        '</section>';
+    var head = '<th>Nom du document</th>' +
+      (withCat ? '<th>Catégorie</th>' : '') +
+      (withDesc ? '<th>Description</th>' : '') +
+      '<th>Fichier</th><th class="doc-table__actions">Actions</th>';
+    var body = rows.map(function (r) {
+      var size = formatFileSize(r.size);
+      return '<tr>' +
+        '<td class="doc-table__name">' + escapeHtml(r.titre) + '</td>' +
+        (withCat ? '<td>' + escapeHtml(textOfRef(r.categorie)) + '</td>' : '') +
+        (withDesc ? '<td>' + escapeHtml(textOf(r.description)) + '</td>' : '') +
+        '<td>' + escapeHtml(r.fileName) + (size ? ' · ' + size : '') + '</td>' +
+        '<td class="doc-table__actions">' +
+        '<a class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-download-line" href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(r.fileName) + '" title="Télécharger">Télécharger</a>' +
+        '</td>' +
+        '</tr>';
     }).join('');
+
+    zone.innerHTML = '<div class="doc-table-wrap"><table class="doc-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
   }
 
   var docSearchInput = document.getElementById('docSearchInput');

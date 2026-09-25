@@ -347,6 +347,30 @@
   .uv-card__occupants { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .uv-card__empty { color: var(--text-mention-grey); font-size: 0.9em; font-style: italic; }
 
+  /* ---- Page "Documents" : cartes groupées par catégorie (voir
+     renderDocumentsPage), chacune avec titre, description et un bouton
+     "Ouvrir" vers le lien renseigné dans la table Grist. ---- */
+  .doc-group + .doc-group { margin-top: 1.5rem; }
+  .doc-group__title { margin: 0 0 0.75rem; font-size: 1.05em; font-weight: 700; }
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+    gap: 1rem;
+  }
+  .doc-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border: 1px solid var(--border-default-grey);
+    border-radius: 0.5rem;
+    background: #fff;
+    padding: 1rem;
+  }
+  .doc-card__title { margin: 0; font-size: 1em; font-weight: 700; overflow-wrap: anywhere; }
+  .doc-card__desc { margin: 0; font-size: 0.9em; color: var(--text-mention-grey); overflow-wrap: anywhere; }
+  .doc-card__badge { align-self: flex-start; }
+  .doc-card__actions { margin-top: auto; padding-top: 0.5rem; }
+
   /* ---- Cartes de demande (pages "Véhicules" / "Matériels", voir
      renderDemandePage) : affichées uniquement en dessous de 40rem, à la
      place du tableau (.req-table-view, voir la règle @media plus bas pour
@@ -605,6 +629,7 @@
     .newreq-dialog__footer .newreq-delete-btn { margin-right: 0; margin-top: 0.75rem; }
 
     .uv-grid { grid-template-columns: 1fr; }
+    .doc-grid { grid-template-columns: 1fr; }
   }
 
   .fr-accordions-group .fr-accordion + .fr-accordion { margin-top: 0.75rem; }
@@ -742,6 +767,9 @@
           <li class="fr-nav__item">
             <button class="fr-nav__link" id="navOccupants" type="button">Hébergement</button>
           </li>
+          <li class="fr-nav__item">
+            <button class="fr-nav__link" id="navDocuments" type="button">Documents</button>
+          </li>
         </ul>
       </nav>
     </div>
@@ -865,6 +893,37 @@
     </ul>
 
     <div id="occZone"></div>
+  </div>
+
+  <!-- Page "Documents" : liste de liens/fichiers lue depuis une table Grist
+       (titre, catégorie, lien, description — voir renderDocumentsPage côté
+       script), présentée en cartes groupées par catégorie. Consultation
+       uniquement : les documents se gèrent directement dans Grist. -->
+  <div id="panelDocuments" hidden>
+    <h2 class="fr-h6">Documents</h2>
+
+    <div class="req-toolbar fr-mb-2w">
+      <div class="fr-search-bar fr-search-bar--sm" id="docSearchBar" role="search">
+        <label class="fr-label" for="docSearchInput">Rechercher un document</label>
+        <input class="fr-input" type="search" id="docSearchInput" placeholder="Rechercher un document…">
+        <button class="fr-btn fr-btn--sm" id="docSearchBtn" title="Rechercher">Rechercher</button>
+      </div>
+      <div class="dropdown-menu" id="docFilterMenu">
+        <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-btn--icon-right fr-icon-arrow-down-s-line" id="docFilterBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="docFilterList">
+          Catégorie
+        </button>
+        <ul class="dropdown-menu__list" id="docFilterList" role="menu" aria-label="Filtrer les documents par catégorie" hidden></ul>
+      </div>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line fr-btn--icon-left" id="docRefreshBtn" type="button">
+        Réinitialiser le(s) filtre(s)
+      </button>
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-refresh-line fr-btn--icon-left" id="docReloadBtn" type="button" title="Recharger les documents depuis la table Grist">
+        Actualiser
+      </button>
+      <p class="req-count req-count--push" id="docCount"></p>
+    </div>
+
+    <div id="docZone"></div>
   </div>
 
   <!-- Pages "Gérer…" : chacune s'ouvre directement depuis le bouton "roue
@@ -1269,6 +1328,40 @@
         </section>
       </div>
 
+      <p class="config-group-title">Documents</p>
+      <div class="fr-accordions-group fr-mb-3w">
+        <section class="fr-accordion">
+          <h4 class="fr-accordion__title">
+            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accDocuments">Documents — liens et fichiers <span class="fr-badge fr-badge--sm" id="docConfigStatus"></span></button>
+          </h4>
+          <div class="fr-collapse" id="accDocuments">
+            <div class="settings-grid">
+              <div class="fr-select-group">
+                <label class="fr-label" for="doc_table">Table Grist</label>
+                <select class="fr-select" id="doc_table" data-page="documents"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="doc_col_titre">Titre</label>
+                <select class="fr-select" id="doc_col_titre" data-page="documents" data-role="titre"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="doc_col_lien">Lien (URL)</label>
+                <select class="fr-select" id="doc_col_lien" data-page="documents" data-role="lien"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="doc_col_categorie">Catégorie (optionnel)</label>
+                <select class="fr-select" id="doc_col_categorie" data-page="documents" data-role="categorie"></select>
+              </div>
+              <div class="fr-select-group">
+                <label class="fr-label" for="doc_col_description">Description (optionnel)</label>
+                <select class="fr-select" id="doc_col_description" data-page="documents" data-role="description"></select>
+              </div>
+            </div>
+            <p class="fr-hint-text fr-mt-2w">« Lien » doit être une colonne Texte ou Lien contenant une adresse web (http:// ou https://) : elle est ouverte dans un nouvel onglet par le bouton « Ouvrir ». « Catégorie » sert à regrouper les documents et à créer un filtre.</p>
+          </div>
+        </section>
+      </div>
+
       <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
         <li><button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer les paramètres</button></li>
         <li><button class="fr-btn fr-btn--secondary" id="cancelSettingsBtn" type="button">Fermer sans enregistrer</button></li>
@@ -1406,9 +1499,11 @@
   var navVehicules = document.getElementById('navVehicules');
   var navMateriels = document.getElementById('navMateriels');
   var navOccupants = document.getElementById('navOccupants');
+  var navDocuments = document.getElementById('navDocuments');
   var panelVehicules = document.getElementById('panelVehicules');
   var panelMateriels = document.getElementById('panelMateriels');
   var panelOccupants = document.getElementById('panelOccupants');
+  var panelDocuments = document.getElementById('panelDocuments');
   var panelSettings = document.getElementById('panelSettings');
   var brandGesture = document.getElementById('brandGesture');
   var closeConfigBtn = document.getElementById('closeConfigBtn');
@@ -1449,6 +1544,9 @@
   // (onglet de la zone Configuration) : recensement des UV (Bâtiment,
   // Chambre, Capacité), avec ajout/suppression — voir renderInfraPage.
   var INFRA_ROLES = ['batiment', 'chambre', 'capacite'];
+  // Rôles de colonnes de la page "Documents" : titre et lien (obligatoires),
+  // catégorie (regroupement + filtre) et description (optionnelles).
+  var DOCUMENTS_ROLES = ['titre', 'categorie', 'lien', 'description'];
 
   // Registre des pages du widget : les 2 pages de demandes et la page
   // "Occupants par UV" (menu principal), plus les 3 pages de gestion du
@@ -1456,10 +1554,10 @@
   // geste caché) — regroupe tout ce qui les distingue, pour que le reste
   // du script (filtres, chargement, réglages) reste générique et commun à
   // toutes les pages.
-  var ALL_PAGES = ['vehicules', 'materiels', 'occupants', 'gestionVehicules', 'gestionMateriels', 'gestionHebergement'];
-  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, occupants: OCCUPANTS_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES, gestionHebergement: INFRA_ROLES };
-  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', occupants: 'occ', gestionVehicules: 'gv', gestionMateriels: 'gm', gestionHebergement: 'gh' }; // vehZone, vehCount, vehRefreshBtn…
-  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', occupants: 'occ_', gestionVehicules: 'gv_', gestionMateriels: 'gm_', gestionHebergement: 'gh_' }; // veh_table, veh_col_demandeur…
+  var ALL_PAGES = ['vehicules', 'materiels', 'occupants', 'gestionVehicules', 'gestionMateriels', 'gestionHebergement', 'documents'];
+  var PAGE_ROLES = { vehicules: ROLES, materiels: MATERIEL_ROLES, occupants: OCCUPANTS_ROLES, gestionVehicules: GESTION_ROLES, gestionMateriels: GESTION_ROLES, gestionHebergement: INFRA_ROLES, documents: DOCUMENTS_ROLES };
+  var PAGE_ID_PREFIX = { vehicules: 'veh', materiels: 'mat', occupants: 'occ', gestionVehicules: 'gv', gestionMateriels: 'gm', gestionHebergement: 'gh', documents: 'doc' }; // vehZone, vehCount, vehRefreshBtn…
+  var PAGE_FORM_PREFIX = { vehicules: 'veh_', materiels: 'mat_', occupants: 'occ_', gestionVehicules: 'gv_', gestionMateriels: 'gm_', gestionHebergement: 'gh_', documents: 'doc_' }; // veh_table, veh_col_demandeur…
   var PAGE_REQUIRED_COLS = {
     // Demandeur et Véhicule sont optionnels côté véhicules (voir
     // PAGE_OPTIONAL_COLS ci-dessous) : seule Décision reste obligatoire
@@ -1469,7 +1567,8 @@
     occupants: ['batiment', 'uv', 'occupants'],
     gestionVehicules: ['identifiant', 'type', 'etat'],
     gestionMateriels: ['identifiant', 'type', 'etat'],
-    gestionHebergement: ['batiment', 'chambre', 'capacite']
+    gestionHebergement: ['batiment', 'chambre', 'capacite'],
+    documents: ['titre', 'lien']
   };
   var PAGE_OPTIONAL_COLS = {
     vehicules: ['demandeur', 'objet', 'quantite', 'conflit'],
@@ -1477,7 +1576,8 @@
     occupants: ['capacite'],
     gestionVehicules: [],
     gestionMateriels: [],
-    gestionHebergement: []
+    gestionHebergement: [],
+    documents: ['categorie', 'description']
   };
   var PAGE_VALEURS_DEFAULT = {
     vehicules: { attente: 'En attente', validee: 'Validée', refusee: 'Refusée', percu: 'Perçu', reintegre: 'Réintégré' },
@@ -1485,9 +1585,10 @@
     occupants: {},
     gestionVehicules: { disponible: 'Disponible', indisponible: 'Indisponible' },
     gestionMateriels: { disponible: 'Disponible', indisponible: 'Indisponible' },
-    gestionHebergement: {}
+    gestionHebergement: {},
+    documents: {}
   };
-  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', occupants: 'occupants', gestionVehicules: 'gestion', gestionMateriels: 'gestion', gestionHebergement: 'infra' };
+  var PAGE_KIND = { vehicules: 'demande', materiels: 'demande', occupants: 'occupants', gestionVehicules: 'gestion', gestionMateriels: 'gestion', gestionHebergement: 'infra', documents: 'documents' };
 
   // gristHelper_Display / gristHelper_Display2… sont des colonnes formule
   // internes que Grist crée automatiquement pour afficher le texte d'une
@@ -1540,7 +1641,8 @@
     // Pas de filtre sur "Gérer les infrastructures d'hébergement" : la
     // liste reste volontairement simple (ajout/suppression), voir
     // renderInfraPage.
-    gestionHebergement: []
+    gestionHebergement: [],
+    documents: ['categorie']
   };
   // Valeur pseudo-décision proposée dans le filtre "Etat" des pages de
   // demandes, en plus des vraies valeurs de la colonne Décision : coche
@@ -1554,7 +1656,8 @@
     occupants: { batiment: 'Bât.' },
     gestionVehicules: { etat: 'Disponibilité', type: 'Type de véhicule' },
     gestionMateriels: { etat: 'Disponibilité', type: 'Catégorie' },
-    gestionHebergement: {}
+    gestionHebergement: {},
+    documents: { categorie: 'Catégorie' }
   };
   var FILTER_DOM_IDS = {
     vehicules: { decision: { btn: 'vehFilterBtn', list: 'vehFilterList' }, demandeur: { btn: 'vehDemandeurFilterBtn', list: 'vehDemandeurFilterList' } },
@@ -1562,7 +1665,8 @@
     occupants: { batiment: { btn: 'occFilterBtn', list: 'occFilterList' } },
     gestionVehicules: { etat: { btn: 'gvFilterBtn', list: 'gvFilterList' }, type: { btn: 'gvTypeFilterBtn', list: 'gvTypeFilterList' } },
     gestionMateriels: { etat: { btn: 'gmFilterBtn', list: 'gmFilterList' }, type: { btn: 'gmTypeFilterBtn', list: 'gmTypeFilterList' } },
-    gestionHebergement: {}
+    gestionHebergement: {},
+    documents: { categorie: { btn: 'docFilterBtn', list: 'docFilterList' } }
   };
 
   var allTableIds = []; // liste des tables du document, rafraîchie à l'ouverture de la configuration
@@ -1573,9 +1677,9 @@
   // que les pages de ce menu : les pages de gestion du parc vivent dans la
   // zone Configuration (geste caché), pas dans ce menu.
 
-  var NAV_PAGES = ['vehicules', 'materiels', 'occupants'];
-  var NAV_ELS = { vehicules: navVehicules, materiels: navMateriels, occupants: navOccupants };
-  var NAV_PANELS = { vehicules: panelVehicules, materiels: panelMateriels, occupants: panelOccupants };
+  var NAV_PAGES = ['vehicules', 'materiels', 'occupants', 'documents'];
+  var NAV_ELS = { vehicules: navVehicules, materiels: navMateriels, occupants: navOccupants, documents: navDocuments };
+  var NAV_PANELS = { vehicules: panelVehicules, materiels: panelMateriels, occupants: panelOccupants, documents: panelDocuments };
 
   function setView(view) {
     currentView = view;
@@ -1595,6 +1699,7 @@
   navVehicules.addEventListener('click', function () { setView('vehicules'); });
   navMateriels.addEventListener('click', function () { setView('materiels'); });
   navOccupants.addEventListener('click', function () { setView('occupants'); });
+  navDocuments.addEventListener('click', function () { setView('documents'); });
 
   // ---- Menus déroulants génériques (filtres) -----------------------------
   // Comportement générique repris de FSJ : ouverture au clic, fermeture au
@@ -1717,6 +1822,12 @@
       occupantSearchText = '';
       var searchInputEl = document.getElementById('occSearchInput');
       if (searchInputEl) searchInputEl.value = '';
+    }
+    // Page "Documents" : idem pour la recherche par texte.
+    if (pageKey === 'documents') {
+      documentSearchText = '';
+      var docSearchInputEl = document.getElementById('docSearchInput');
+      if (docSearchInputEl) docSearchInputEl.value = '';
     }
     renderPage(pageKey);
   }
@@ -2567,6 +2678,7 @@
     if (PAGE_KIND[pageKey] === 'gestion') return renderGestionPage(pageKey);
     if (PAGE_KIND[pageKey] === 'occupants') return renderOccupantsPage(pageKey);
     if (PAGE_KIND[pageKey] === 'infra') return renderInfraPage(pageKey);
+    if (PAGE_KIND[pageKey] === 'documents') return renderDocumentsPage(pageKey);
     return renderDemandePage(pageKey);
   }
 
@@ -3382,6 +3494,128 @@
     occSearchBtn.addEventListener('click', function (e) {
       e.preventDefault();
       occSearchInput.focus();
+    });
+  }
+
+  // ---- Page "Documents" ---------------------------------------------------
+  // Liste de liens/fichiers lue depuis une table Grist, présentée en cartes
+  // groupées par catégorie (colonne optionnelle) — consultation seule. La
+  // recherche texte (titre, description, catégorie) se combine en ET avec
+  // le filtre Catégorie.
+  var documentSearchText = '';
+  var DOC_UNCATEGORIZED = 'Autres documents';
+
+  // Adresse sûre pour un href : seules les adresses http(s) sont ouvertes
+  // (un "javascript:" ou "data:" saisi dans la table ne doit jamais devenir
+  // cliquable) ; "www.exemple.fr" est complété en https://. Renvoie '' si la
+  // valeur n'est pas une adresse web exploitable.
+  function safeDocUrl(v) {
+    var raw = textOf(v);
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^www\./i.test(raw)) return 'https://' + raw;
+    return '';
+  }
+
+  function renderDocumentsPage(pageKey) {
+    var cfg = settings[pageKey];
+    var zone = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Zone');
+    var countEl = document.getElementById(PAGE_ID_PREFIX[pageKey] + 'Count');
+
+    if (!isPageConfigComplete(pageKey, cfg)) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--warning fr-alert--sm">' +
+        '<p>Aucune table n’est configurée pour cette page. Associez une table Grist et ses colonnes dans les réglages du widget.</p>' +
+        '</div>';
+      return;
+    }
+    if (pageData[pageKey].error) {
+      countEl.textContent = '';
+      zone.innerHTML = '<div class="fr-alert fr-alert--error fr-alert--sm"><p>Erreur de chargement : ' + escapeHtml(pageData[pageKey].error) + '</p></div>';
+      return;
+    }
+    if (!pageData[pageKey].loaded) {
+      countEl.textContent = '';
+      zone.innerHTML = '<p class="fr-text--sm">Chargement des données…</p>';
+      return;
+    }
+
+    var all = pageData[pageKey].rows;
+    var filters = activeFilters[pageKey];
+    var searchQ = normalizeKey(documentSearchText);
+    var rows = all.filter(function (r) {
+      if (filters.categorie.length && filters.categorie.indexOf(textOfRef(r.categorie)) === -1) return false;
+      if (searchQ) {
+        var haystack = normalizeKey([textOf(r.titre), textOf(r.description), textOfRef(r.categorie)].join(' '));
+        if (haystack.indexOf(searchQ) === -1) return false;
+      }
+      return true;
+    });
+
+    countEl.textContent = rows.length + ' document(s) affiché(s) sur ' + all.length;
+
+    if (all.length === 0) {
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>Aucun document dans la table configurée.</p></div>';
+      return;
+    }
+    if (rows.length === 0) {
+      var noMatchMsg = documentSearchText
+        ? 'Aucun document ne correspond à la recherche « ' + escapeHtml(documentSearchText) + ' ».'
+        : 'Aucun document ne correspond au filtre sélectionné.';
+      zone.innerHTML = '<div class="fr-alert fr-alert--info fr-alert--sm"><p>' + noMatchMsg + '</p></div>';
+      return;
+    }
+
+    // Regroupement par catégorie (ordre alphabétique, "Autres documents"
+    // en dernier) ; sans colonne Catégorie réglée, un seul groupe sans titre.
+    var hasCategories = !!cfg.col.categorie;
+    var groups = {};
+    var groupOrder = [];
+    rows.forEach(function (r) {
+      var cat = hasCategories ? (textOfRef(r.categorie) || DOC_UNCATEGORIZED) : '';
+      if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
+      groups[cat].push(r);
+    });
+    groupOrder.sort(function (a, b) {
+      if (a === DOC_UNCATEGORIZED) return 1;
+      if (b === DOC_UNCATEGORIZED) return -1;
+      return a.localeCompare(b, 'fr');
+    });
+
+    zone.innerHTML = groupOrder.map(function (cat) {
+      var cards = groups[cat].slice().sort(function (a, b) {
+        return textOf(a.titre).localeCompare(textOf(b.titre), 'fr');
+      }).map(function (r) {
+        var url = safeDocUrl(r.lien);
+        var title = textOf(r.titre) || '(sans titre)';
+        var desc = textOf(r.description);
+        var action = url
+          ? '<a class="fr-btn fr-btn--sm fr-icon-external-link-line fr-btn--icon-right" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer" title="Ouvrir « ' + escapeHtml(title) + ' » dans un nouvel onglet">Ouvrir</a>'
+          : '<span class="fr-badge fr-badge--sm fr-badge--warning">Lien manquant ou invalide</span>';
+        return '<div class="doc-card">' +
+          '<h4 class="doc-card__title">' + escapeHtml(title) + '</h4>' +
+          (desc ? '<p class="doc-card__desc">' + escapeHtml(desc) + '</p>' : '') +
+          '<div class="doc-card__actions">' + action + '</div>' +
+          '</div>';
+      }).join('');
+      return '<section class="doc-group">' +
+        (hasCategories ? '<h3 class="doc-group__title">' + escapeHtml(cat) + '</h3>' : '') +
+        '<div class="doc-grid">' + cards + '</div>' +
+        '</section>';
+    }).join('');
+  }
+
+  var docSearchInput = document.getElementById('docSearchInput');
+  var docSearchBtn = document.getElementById('docSearchBtn');
+  if (docSearchInput) {
+    docSearchInput.addEventListener('input', function () {
+      documentSearchText = docSearchInput.value;
+      renderPage('documents');
+    });
+  }
+  if (docSearchBtn) {
+    docSearchBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      docSearchInput.focus();
     });
   }
 

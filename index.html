@@ -625,6 +625,63 @@
     .uv-grid { grid-template-columns: 1fr; }
   }
 
+  .cfg { max-width: 64rem; margin: 0 auto; }
+  .cfg-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+  .cfg-header h2 { margin: 0; }
+  .cfg-header p { margin: 0.25rem 0 0; color: var(--text-mention-grey); font-size: 0.9em; }
+  .cfg-summary { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .cfg-chip {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    font-size: 0.8em; font-weight: 600;
+    padding: 0.28rem 0.75rem; border-radius: 999px;
+    background: #f0f0f3; color: #3a3a45;
+  }
+  .cfg-chip::before { content: ''; width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #8b8b96; flex: none; }
+  .cfg-chip--ok { background: var(--uv-pastel-full); color: var(--statut-validee); }
+  .cfg-chip--ok::before { background: var(--statut-validee); }
+  .cfg-chip--warn { background: var(--statut-pastel-attente); color: #716200; }
+  .cfg-chip--warn::before { background: #b58900; }
+  .cfg-help {
+    margin-bottom: 1.25rem; padding: 0.65rem 1rem;
+    border: 1px solid var(--border-default-grey); border-radius: 0.5rem; background: #f7f7fb; font-size: 0.85em;
+  }
+  .cfg-help summary { cursor: pointer; font-weight: 700; color: var(--bleu-france); }
+  .cfg-help ul { margin: 0.6rem 0 0.2rem; padding-left: 1.1rem; }
+  .cfg-help li { margin-bottom: 0.4rem; }
+  .cfg-card {
+    background: #fff; border: 1px solid var(--border-default-grey); border-radius: 0.6rem;
+    padding: 1.25rem 1.4rem 1.4rem; margin-bottom: 1rem;
+    box-shadow: 0 1px 3px rgba(20, 10, 30, 0.05);
+  }
+  .cfg-card__head { display: flex; align-items: flex-start; gap: 0.85rem; margin-bottom: 1.1rem; }
+  .cfg-card__num {
+    flex: none; width: 1.8rem; height: 1.8rem; border-radius: 999px;
+    background: var(--bleu-france); color: #fff; font-weight: 700; font-size: 0.85rem;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .cfg-card__title { margin: 0; font-size: 1.05rem; font-weight: 700; }
+  .cfg-card__title .fr-badge { margin-left: 0.6rem; vertical-align: middle; }
+  .cfg-card__desc { margin: 0.2rem 0 0; font-size: 0.85em; color: var(--text-mention-grey); }
+  .cfg-sources__note { margin: 0.6rem 0 0.2rem; color: var(--text-mention-grey); }
+  .cfg-sources h4 { margin: 1rem 0 0.35rem; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.03em; color: var(--bleu-france); }
+  .cfg-sources__table { width: 100%; border-collapse: collapse; }
+  .cfg-sources__table th, .cfg-sources__table td { padding: 0.32rem 0.5rem; text-align: left; vertical-align: top; border-top: 1px solid var(--border-default-grey); }
+  .cfg-sources__table th { width: 34%; font-weight: 600; }
+  .cfg-sources__col { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+  .cfg-bar {
+    position: sticky; bottom: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    margin: 1.25rem -0.25rem 0; padding: 0.8rem 1rem;
+    background: rgba(255, 255, 255, 0.97); border-top: 1px solid var(--border-default-grey);
+    box-shadow: 0 -4px 14px rgba(20, 10, 30, 0.08);
+  }
+  .cfg-bar__state { font-size: 0.85em; color: var(--text-mention-grey); }
+  .cfg-bar__state--dirty { color: #716200; font-weight: 700; }
+  .cfg-bar__state--dirty::before { content: '● '; }
+  .cfg-bar__actions { display: flex; gap: 0.75rem; }
+  @media (max-width: 40rem) {
+    .cfg-card { padding: 1rem; }
+  }
   .fr-accordions-group .fr-accordion + .fr-accordion { margin-top: 0.75rem; }
   .settings-grid {
     display: grid;
@@ -1018,23 +1075,44 @@
        sur le bloc marque) — la gestion courante du parc/hébergement
        ci-dessus n'y vit plus, voir la note en tête de section. -->
   <div id="panelSettings" hidden>
-    <div class="config-header">
-      <h2 class="fr-h6">Réglages du widget</h2>
+  <div class="cfg">
+    <div class="cfg-header">
+      <div>
+        <h2 class="fr-h5">Configuration</h2>
+        <p>Paramétrage du widget « Réservations véhicules &amp; matériels ». Réservé à l'équipe projet.</p>
+      </div>
       <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="closeConfigBtn" type="button">Fermer</button>
     </div>
-    <div id="configPanelReglages">
-    <div class="fr-alert fr-alert--info fr-alert--sm fr-mb-3w">
-      <p>Associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget. Cliquez sur une section pour la déplier ; le badge indique si elle est déjà configurée.</p>
-    </div>
 
-    <form id="settingsForm">
-      <p class="config-group-title">Pages de demandes</p>
-      <div class="fr-accordions-group fr-mb-3w">
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="true" aria-controls="accVehicules">Véhicules — demandes de réservation <span class="fr-badge fr-badge--sm" id="vehConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse fr-collapse--expanded" id="accVehicules">
+    <div class="cfg-summary" id="cfgSummary" aria-live="polite"></div>
+    <div id="settingsStatusZone" class="fr-mb-2w" aria-live="polite"></div>
+
+    <details class="cfg-help">
+      <summary>Aide au paramétrage</summary>
+      <ul>
+        <li><strong>Tables et colonnes :</strong> associez, pour chaque page, la table Grist correspondante et le rôle de chacune de ses colonnes. Ces réglages sont mémorisés avec le widget.</li>
+        <li><strong>Libellés :</strong> les libellés de Décision (En attente, Validée…) et de Disponibilité doivent correspondre à ceux de votre table.</li>
+        <li><strong>Hébergement :</strong> la page « Hébergement » et la gestion des infrastructures partagent la même table Grist.</li>
+        <li><strong>Documents :</strong> la table et les colonnes de la page Documents sont fixes (dans le code) ; leur état est indiqué ci-dessous.</li>
+        <li><strong>Enregistrement :</strong> la barre du bas indique s'il reste des modifications non enregistrées.</li>
+      </ul>
+    </details>
+
+    <details class="cfg-help cfg-sources" id="cfgSources">
+      <summary>Sources de données fixes (lecture seule)</summary>
+      <div id="cfgSourcesBody"></div>
+    </details>
+
+    <div id="configPanelReglages">
+    <form id="settingsForm" novalidate>
+        <section class="cfg-card" aria-labelledby="cfgCardTitle1">
+          <div class="cfg-card__head">
+            <span class="cfg-card__num" aria-hidden="true">1</span>
+            <div>
+              <h3 class="cfg-card__title" id="cfgCardTitle1">Véhicules — demandes de réservation <span class="fr-badge fr-badge--sm" id="vehConfigStatus"></span></h3>
+              <p class="cfg-card__desc">Table des demandes de réservation de véhicules et rôle de chacune de ses colonnes.</p>
+            </div>
+          </div>
             <div class="settings-grid">
               <div class="fr-select-group">
                 <label class="fr-label" for="veh_table">Table Grist</label>
@@ -1093,14 +1171,16 @@
                 <input class="fr-input" type="text" id="veh_val_reintegre" value="Réintégré">
               </div>
             </div>
-          </div>
         </section>
 
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accMateriels">Matériels — demandes de réservation <span class="fr-badge fr-badge--sm" id="matConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse" id="accMateriels">
+        <section class="cfg-card" aria-labelledby="cfgCardTitle2">
+          <div class="cfg-card__head">
+            <span class="cfg-card__num" aria-hidden="true">2</span>
+            <div>
+              <h3 class="cfg-card__title" id="cfgCardTitle2">Matériels — demandes de réservation <span class="fr-badge fr-badge--sm" id="matConfigStatus"></span></h3>
+              <p class="cfg-card__desc">Table des demandes de réservation de matériels et rôle de chacune de ses colonnes.</p>
+            </div>
+          </div>
             <div class="settings-grid">
               <div class="fr-select-group">
                 <label class="fr-label" for="mat_table">Table Grist</label>
@@ -1164,17 +1244,16 @@
                 <input class="fr-input" type="text" id="mat_val_reintegre" value="Réintégré">
               </div>
             </div>
-          </div>
         </section>
-      </div>
 
-      <p class="config-group-title">Gestion du parc</p>
-      <div class="fr-accordions-group fr-mb-3w">
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionVehicules">Gérer les véhicules — recensement du parc <span class="fr-badge fr-badge--sm" id="gvConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse" id="accGestionVehicules">
+<section class="cfg-card" aria-labelledby="cfgCardTitle3">
+          <div class="cfg-card__head">
+            <span class="cfg-card__num" aria-hidden="true">3</span>
+            <div>
+              <h3 class="cfg-card__title" id="cfgCardTitle3">Gérer les véhicules — recensement du parc <span class="fr-badge fr-badge--sm" id="gvConfigStatus"></span></h3>
+              <p class="cfg-card__desc">Recensement du parc de véhicules : identifiant, type et disponibilité.</p>
+            </div>
+          </div>
             <div class="settings-grid">
               <div class="fr-select-group">
                 <label class="fr-label" for="gv_table">Table Grist</label>
@@ -1204,14 +1283,16 @@
                 <input class="fr-input" type="text" id="gv_val_indisponible" value="Indisponible">
               </div>
             </div>
-          </div>
         </section>
 
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accGestionMateriels">Gérer le matériel — recensement du parc <span class="fr-badge fr-badge--sm" id="gmConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse" id="accGestionMateriels">
+        <section class="cfg-card" aria-labelledby="cfgCardTitle4">
+          <div class="cfg-card__head">
+            <span class="cfg-card__num" aria-hidden="true">4</span>
+            <div>
+              <h3 class="cfg-card__title" id="cfgCardTitle4">Gérer le matériel — recensement du parc <span class="fr-badge fr-badge--sm" id="gmConfigStatus"></span></h3>
+              <p class="cfg-card__desc">Recensement du matériel : désignation, catégorie et disponibilité.</p>
+            </div>
+          </div>
             <div class="settings-grid">
               <div class="fr-select-group">
                 <label class="fr-label" for="gm_table">Table Grist</label>
@@ -1241,14 +1322,9 @@
                 <input class="fr-input" type="text" id="gm_val_indisponible" value="Indisponible">
               </div>
             </div>
-          </div>
         </section>
 
-      </div>
-
-      <p class="config-group-title">Hébergement</p>
-      <div class="fr-accordions-group fr-mb-3w">
-        <!-- Section fusionnée : la page "Hébergement" (occupants) et l'onglet
+<!-- Section fusionnée : la page "Hébergement" (occupants) et l'onglet
              "Gérer les infrastructures d'hébergement" (ajout/suppression
              d'UV) pointent en pratique vers la MÊME table Grist (une UV =
              un bâtiment + une chambre + une capacité + ses occupants) — un
@@ -1262,11 +1338,14 @@
              "UV" est l'identifiant combiné affiché par la page Hébergement
              (ex. "3-12", voir formatUvTitle). Voir mirrorHebergementField
              côté script. -->
-        <section class="fr-accordion">
-          <h4 class="fr-accordion__title">
-            <button type="button" class="fr-accordion__btn" aria-expanded="false" aria-controls="accOccupants">Hébergement — UV, chambres et occupants <span class="fr-badge fr-badge--sm" id="occConfigStatus"></span></button>
-          </h4>
-          <div class="fr-collapse" id="accOccupants">
+        <section class="cfg-card" aria-labelledby="cfgCardTitle5">
+          <div class="cfg-card__head">
+            <span class="cfg-card__num" aria-hidden="true">5</span>
+            <div>
+              <h3 class="cfg-card__title" id="cfgCardTitle5">Hébergement — UV, chambres et occupants <span class="fr-badge fr-badge--sm" id="occConfigStatus"></span></h3>
+              <p class="cfg-card__desc">UV, chambres et occupants : sert à la page « Hébergement » et à la gestion des infrastructures.</p>
+            </div>
+          </div>
             <div class="settings-grid">
               <div class="fr-select-group">
                 <label class="fr-label" for="occ_table">Table Grist</label>
@@ -1316,17 +1395,18 @@
                 <select class="fr-select" id="gh_col_capacite" data-page="gestionHebergement" data-role="capacite"></select>
               </div>
             </div>
-          </div>
         </section>
-      </div>
 
-      <ul class="fr-btns-group fr-btns-group--inline-md fr-mt-4w">
-        <li><button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer les paramètres</button></li>
-        <li><button class="fr-btn fr-btn--secondary" id="cancelSettingsBtn" type="button">Fermer sans enregistrer</button></li>
-      </ul>
+      <div class="cfg-bar">
+        <span class="cfg-bar__state" id="cfgBarState">Configuration à jour</span>
+        <div class="cfg-bar__actions">
+          <button class="fr-btn fr-btn--tertiary" id="cancelSettingsBtn" type="button">Annuler</button>
+          <button class="fr-btn" id="saveSettingsBtn" type="button">Enregistrer</button>
+        </div>
+      </div>
     </form>
 
-    <div id="settingsStatusZone" class="fr-mt-3w" aria-live="polite"></div>
+    </div>
     </div>
   </div>
 
@@ -1504,6 +1584,9 @@
   var cancelSettingsBtn = document.getElementById('cancelSettingsBtn');
   var saveSettingsBtn = document.getElementById('saveSettingsBtn');
   var settingsStatusZone = document.getElementById('settingsStatusZone');
+  var cfgSummary = document.getElementById('cfgSummary');
+  var cfgBarState = document.getElementById('cfgBarState');
+  var configDirty = false;
 
   var currentView = 'vehicules'; // 'vehicules' | 'materiels' | 'occupants' (la vue active parmi les pages du menu principal)
   var viewBeforeSettings = 'vehicules';
@@ -2051,6 +2134,9 @@
     panelSettings.hidden = false;
     settingsStatusZone.innerHTML = '';
     fillSettingsForm();
+    setConfigDirty(false);
+    renderConfigSummary();
+    renderSourcesPanel();
     // Peint tout de suite les badges "Configurée"/"À compléter" à partir
     // des derniers réglages enregistrés (settings), sans attendre le
     // rechargement async des listes de tables/colonnes ci-dessous — évite
@@ -2060,6 +2146,8 @@
     refreshTableList();
   }
   function closeSettings() {
+    if (configDirty && !window.confirm('Des modifications ne sont pas enregistrées. Fermer sans enregistrer ?')) return;
+    setConfigDirty(false);
     panelSettings.hidden = true;
     setView(viewBeforeSettings);
   }
@@ -2263,11 +2351,56 @@
   var HEBERGEMENT_BADGE_PAGES = ['occupants', 'gestionHebergement'];
   function updateConfigSectionStatus(pageKey) {
     if (HEBERGEMENT_BADGE_PAGES.indexOf(pageKey) !== -1) {
-      var configured = HEBERGEMENT_BADGE_PAGES.every(computeSectionConfigured);
-      paintConfigBadge('occupants', configured);
-      return;
+      paintConfigBadge('occupants', HEBERGEMENT_BADGE_PAGES.every(computeSectionConfigured));
+    } else {
+      paintConfigBadge(pageKey, computeSectionConfigured(pageKey));
     }
-    paintConfigBadge(pageKey, computeSectionConfigured(pageKey));
+    renderConfigSummary();
+  }
+
+  function setConfigDirty(dirty) {
+    configDirty = dirty;
+    cfgBarState.textContent = dirty ? 'Modifications non enregistrées' : 'Configuration à jour';
+    cfgBarState.classList.toggle('cfg-bar__state--dirty', dirty);
+  }
+
+  function renderConfigSummary() {
+    var chips = [];
+    function chip(kind, text) {
+      chips.push('<span class="cfg-chip' + (kind ? ' cfg-chip--' + kind : '') + '">' + escapeHtml(text) + '</span>');
+    }
+    [['vehicules', 'Véhicules'], ['materiels', 'Matériels'], ['gestionVehicules', 'Parc véhicules'], ['gestionMateriels', 'Parc matériel']].forEach(function (p) {
+      if (computeSectionConfigured(p[0])) chip('ok', p[1] + ' : configuré');
+      else chip('warn', p[1] + ' : à compléter');
+    });
+    if (HEBERGEMENT_BADGE_PAGES.every(computeSectionConfigured)) chip('ok', 'Hébergement : configuré');
+    else chip('warn', 'Hébergement : à compléter');
+    if (pageData.documents.error) chip('warn', 'Documents : table introuvable');
+    else if (!pageData.documents.loaded) chip('', 'Documents : non vérifiés');
+    else if (!docColId.pj || !docColId.titre) chip('warn', 'Documents : colonne(s) introuvable(s)');
+    else chip('ok', 'Documents : prêts');
+    cfgSummary.innerHTML = chips.join('');
+  }
+
+  var DOC_ROLE_LABELS = { titre: 'Nom du document', categorie: 'Type', description: 'Description', pj: 'Fichier (pièces jointes)', maj: 'Dernière mise à jour' };
+  function renderSourcesPanel() {
+    var body = document.getElementById('cfgSourcesBody');
+    if (!body) return;
+    var loaded = pageData.documents.loaded;
+    function badge(found) {
+      if (!loaded) return '<span class="fr-badge fr-badge--sm">non vérifiée</span>';
+      return found
+        ? '<span class="fr-badge fr-badge--sm fr-badge--success">trouvée</span>'
+        : '<span class="fr-badge fr-badge--sm fr-badge--warning">introuvable</span>';
+    }
+    var rows = '<tr><th scope="row">Table</th><td><span class="cfg-sources__col">' + escapeHtml(DOCUMENTS_TABLE) + '</span> ' +
+      (pageData.documents.error ? '<span class="fr-badge fr-badge--sm fr-badge--warning">introuvable</span>' : badge(true)) + '</td></tr>';
+    Object.keys(DOC_ROLE_LABELS).forEach(function (role) {
+      rows += '<tr><th scope="row">' + escapeHtml(DOC_ROLE_LABELS[role]) + '</th><td><span class="cfg-sources__col">' +
+        escapeHtml(docColId[role] || DOCUMENTS_COLS[role][0]) + '</span> ' + badge(docColId[role]) + '</td></tr>';
+    });
+    body.innerHTML = '<p class="cfg-sources__note">La table et les colonnes de la page Documents sont fixes (dans le code).</p>' +
+      '<h4>Documents</h4><table class="cfg-sources__table"><tbody>' + rows + '</tbody></table>';
   }
   function updateAllConfigSectionStatuses() {
     ALL_PAGES.forEach(updateConfigSectionStatus);
@@ -2280,6 +2413,8 @@
     var pk = e.target.getAttribute && e.target.getAttribute('data-page');
     if (pk) updateConfigSectionStatus(pk);
   });
+  settingsForm.addEventListener('input', function () { setConfigDirty(true); });
+  settingsForm.addEventListener('change', function () { setConfigDirty(true); });
 
   ALL_PAGES.forEach(function (pageKey) {
     var sel = document.getElementById(PAGE_FORM_PREFIX[pageKey] + 'table');
@@ -2315,6 +2450,7 @@
     ALL_PAGES.forEach(function (pageKey) { next[pageKey] = pageConfigFromForm(pageKey); });
     grist.setOption('reservationsConfig', next).then(function () {
       settings = next;
+      setConfigDirty(false);
       showSettingsStatus('success', 'Paramètres enregistrés.');
       updateAllConfigSectionStatuses();
       refreshAll();
@@ -3556,9 +3692,11 @@
       });
       pageData.documents = { rows: rows, loaded: true };
       renderPage('documents');
+      if (!panelSettings.hidden) { renderConfigSummary(); renderSourcesPanel(); }
     }).catch(function (e) {
       pageData.documents = { rows: [], loaded: false, error: friendlyErrorMessage(e) };
       renderPage('documents');
+      if (!panelSettings.hidden) { renderConfigSummary(); renderSourcesPanel(); }
     });
   }
 

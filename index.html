@@ -358,6 +358,16 @@
   .doc-table tbody tr:hover td { background: #f6f6fb; }
   .doc-table__actions { white-space: nowrap; text-align: right !important; }
   .doc-table__actions .fr-btn { padding: 0.25rem 0.4rem; min-height: 0; }
+  .doc-table tbody .doc-table__group th { background: #eeeef9; color: var(--bleu-france); font-size: 0.9em; font-weight: 700; }
+  .doc-table__actions .fr-btn + .fr-btn { margin-left: 0.15rem; }
+  .doc-drop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem;
+    margin-bottom: 1rem; padding: 1.75rem 1rem; text-align: center; cursor: pointer;
+    border: 2px dashed var(--border-default-grey); border-radius: 0.5rem; background: #f7f7fb;
+  }
+  .doc-drop:hover, .doc-drop:focus, .doc-drop.is-over { border-color: var(--bleu-france); background: #f0f0ff; }
+  .doc-drop__main { margin: 0; font-weight: 700; }
+  .doc-drop__file { margin: 0; font-size: 0.9em; color: var(--text-mention-grey); overflow-wrap: anywhere; }
 
   /* ---- Cartes de demande (pages "Véhicules" / "Matériels", voir
      renderDemandePage) : affichées uniquement en dessous de 40rem, à la
@@ -886,6 +896,9 @@
     <h2 class="fr-h6">Documents</h2>
 
     <div class="req-toolbar fr-mb-2w">
+      <button class="fr-btn fr-btn--sm fr-icon-add-line fr-btn--icon-left" id="docNewBtn" type="button">
+        Ajouter un document
+      </button>
       <div class="fr-search-bar fr-search-bar--sm" id="docSearchBar" role="search">
         <label class="fr-label" for="docSearchInput">Rechercher un document</label>
         <input class="fr-input" type="search" id="docSearchInput" placeholder="Rechercher un document…">
@@ -1425,6 +1438,40 @@
       <div class="newreq-dialog__footer">
         <button class="fr-btn fr-btn--secondary" type="button" id="newInfraBulkCancelBtn">Annuler</button>
         <button class="fr-btn" type="submit" id="newInfraBulkSubmitBtn">Ajouter les chambres</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="newreq-overlay" id="docModalOverlay" hidden>
+  <div class="newreq-dialog" role="dialog" aria-modal="true" aria-labelledby="docModalTitle">
+    <div class="newreq-dialog__header">
+      <button class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" id="docModalCloseBtn" type="button">Fermer</button>
+    </div>
+    <h1 id="docModalTitle">Ajouter un document</h1>
+    <form id="docModalForm">
+      <div class="doc-drop" id="docDrop" role="button" tabindex="0" aria-label="Cliquer ou glisser un fichier">
+        <p class="doc-drop__main">Cliquez ou glissez un fichier ici</p>
+        <p class="doc-drop__file" id="docDropFile"></p>
+      </div>
+      <input type="file" id="docFileInput" hidden>
+      <div class="fr-input-group" id="docTitreGroup">
+        <label class="fr-label" for="docTitreInput">Nom du document</label>
+        <input class="fr-input" type="text" id="docTitreInput" autocomplete="off">
+      </div>
+      <div class="fr-input-group" id="docTypeGroup">
+        <label class="fr-label" for="docTypeInput">Type</label>
+        <input class="fr-input" type="text" id="docTypeInput" list="docTypeList" autocomplete="off">
+        <datalist id="docTypeList"></datalist>
+      </div>
+      <div class="fr-input-group" id="docDescGroup">
+        <label class="fr-label" for="docDescInput">Description</label>
+        <textarea class="fr-input" id="docDescInput" rows="3"></textarea>
+      </div>
+      <p class="fr-hint-text" id="docModalStatus" aria-live="polite"></p>
+      <div class="newreq-dialog__footer">
+        <button class="fr-btn fr-btn--secondary" type="button" id="docModalCancelBtn">Annuler</button>
+        <button class="fr-btn" type="submit" id="docModalSubmitBtn">Ajouter</button>
       </div>
     </form>
   </div>
@@ -3443,8 +3490,12 @@
   }
 
   var DOCUMENTS_TABLE = 'Documents';
-  var DOCUMENTS_COLS = { titre: 'Titre', categorie: 'Categorie', description: 'Description', pj: 'PJ' };
+  var DOCUMENTS_COLS = { titre: 'Titre', categorie: 'Type', description: 'Description', pj: 'PJ', maj: 'Derniere_mise_a_jour' };
+  var DOC_UNCATEGORIZED = 'Autres documents';
   var documentSearchText = '';
+  var docColPresent = {};
+  var docEditing = null;
+  var docPendingFile = null;
 
   function formatFileSize(bytes) {
     var n = Number(bytes);
@@ -3452,6 +3503,16 @@
     if (n < 1024) return n + ' o';
     if (n < 1024 * 1024) return Math.round(n / 1024) + ' Ko';
     return (n / (1024 * 1024)).toFixed(1).replace('.', ',') + ' Mo';
+  }
+
+  function formatDocDate(v) {
+    if (typeof v === 'number') {
+      var d = new Date(v * 1000);
+      if (isNaN(d)) return '';
+      if (v % 86400 === 0) return d.toLocaleDateString('fr-FR', { timeZone: 'UTC' });
+      return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+    }
+    return textOf(v);
   }
 
   function loadDocuments() {
@@ -3463,29 +3524,37 @@
       var data = res[0];
       var att = res[1];
       var tok = res[2];
+      Object.keys(DOCUMENTS_COLS).forEach(function (role) { docColPresent[role] = !!data[DOCUMENTS_COLS[role]]; });
       var files = {};
       for (var i = 0; i < att.id.length; i++) {
-        files[att.id[i]] = { name: att.fileName[i], size: att.fileSize[i] };
+        files[att.id[i]] = { id: att.id[i], name: att.fileName[i], size: att.fileSize[i] };
       }
-      var rows = [];
-      (data.id || []).forEach(function (id, idx) {
+      var rows = (data.id || []).map(function (id, idx) {
         function cell(role) {
           var col = data[DOCUMENTS_COLS[role]];
           return col ? col[idx] : null;
         }
+        var recFiles = [];
         listOf(cell('pj')).forEach(function (attId) {
           var f = files[attId];
           if (!f) return;
-          rows.push({
-            id: id + '-' + attId,
-            titre: textOf(cell('titre')) || f.name,
-            fileName: f.name,
+          recFiles.push({
+            id: f.id,
+            name: f.name,
             size: f.size,
-            categorie: cell('categorie'),
-            description: cell('description'),
-            url: tok.baseUrl + '/attachments/' + attId + '/download?auth=' + encodeURIComponent(tok.token)
+            url: tok.baseUrl + '/attachments/' + f.id + '/download?auth=' + encodeURIComponent(tok.token)
           });
         });
+        var rawTitre = textOf(cell('titre'));
+        return {
+          id: id,
+          rawTitre: rawTitre,
+          titre: rawTitre || (recFiles.length ? recFiles[0].name : '(sans nom)'),
+          categorie: cell('categorie'),
+          description: cell('description'),
+          maj: cell('maj'),
+          files: recFiles
+        };
       });
       pageData.documents = { rows: rows, loaded: true };
       renderPage('documents');
@@ -3516,7 +3585,7 @@
     var rows = all.filter(function (r) {
       if (filters.categorie.length && filters.categorie.indexOf(textOfRef(r.categorie)) === -1) return false;
       if (searchQ) {
-        var haystack = normalizeKey([r.titre, r.fileName, textOf(r.description), textOfRef(r.categorie)].join(' '));
+        var haystack = normalizeKey([r.titre, r.files.map(function (f) { return f.name; }).join(' '), textOf(r.description), textOfRef(r.categorie)].join(' '));
         if (haystack.indexOf(searchQ) === -1) return false;
       }
       return true;
@@ -3536,28 +3605,65 @@
       return;
     }
 
-    var withCat = rows.some(function (r) { return textOfRef(r.categorie); });
     var withDesc = rows.some(function (r) { return textOf(r.description); });
-    rows.sort(function (a, b) { return a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' }); });
+    var withMaj = docColPresent.maj;
+    var colCount = 3 + (withDesc ? 1 : 0) + (withMaj ? 1 : 0);
+
+    var groups = {};
+    var groupOrder = [];
+    rows.forEach(function (r) {
+      var cat = textOfRef(r.categorie) || DOC_UNCATEGORIZED;
+      if (!groups[cat]) { groups[cat] = []; groupOrder.push(cat); }
+      groups[cat].push(r);
+    });
+    groupOrder.sort(function (a, b) {
+      if (a === DOC_UNCATEGORIZED) return 1;
+      if (b === DOC_UNCATEGORIZED) return -1;
+      return a.localeCompare(b, 'fr', { sensitivity: 'base' });
+    });
 
     var head = '<th>Nom du document</th>' +
-      (withCat ? '<th>Catégorie</th>' : '') +
       (withDesc ? '<th>Description</th>' : '') +
-      '<th>Fichier</th><th class="doc-table__actions">Actions</th>';
-    var body = rows.map(function (r) {
-      var size = formatFileSize(r.size);
-      return '<tr>' +
-        '<td class="doc-table__name">' + escapeHtml(r.titre) + '</td>' +
-        (withCat ? '<td>' + escapeHtml(textOfRef(r.categorie)) + '</td>' : '') +
-        (withDesc ? '<td>' + escapeHtml(textOf(r.description)) + '</td>' : '') +
-        '<td>' + escapeHtml(r.fileName) + (size ? ' · ' + size : '') + '</td>' +
-        '<td class="doc-table__actions">' +
-        '<a class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-download-line" href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(r.fileName) + '" title="Télécharger">Télécharger</a>' +
-        '</td>' +
-        '</tr>';
+      '<th>Fichier</th>' +
+      (withMaj ? '<th>Dernière mise à jour</th>' : '') +
+      '<th class="doc-table__actions">Actions</th>';
+
+    var body = groupOrder.map(function (cat) {
+      var list = groups[cat].slice().sort(function (a, b) {
+        return a.titre.localeCompare(b.titre, 'fr', { sensitivity: 'base' });
+      });
+      return '<tr class="doc-table__group"><th colspan="' + colCount + '" scope="colgroup">' + escapeHtml(cat) + '</th></tr>' +
+        list.map(function (r) {
+          var fileCell = r.files.length
+            ? r.files.map(function (f) {
+                var size = formatFileSize(f.size);
+                return escapeHtml(f.name) + (size ? ' · ' + size : '');
+              }).join('<br>')
+            : '—';
+          var downloads = r.files.map(function (f) {
+            return '<a class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-download-line" href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(f.name) + '" title="Télécharger ' + escapeHtml(f.name) + '">Télécharger ' + escapeHtml(f.name) + '</a>';
+          }).join('');
+          return '<tr>' +
+            '<td class="doc-table__name">' + escapeHtml(r.titre) + '</td>' +
+            (withDesc ? '<td>' + escapeHtml(textOf(r.description)) + '</td>' : '') +
+            '<td>' + fileCell + '</td>' +
+            (withMaj ? '<td>' + escapeHtml(formatDocDate(r.maj)) + '</td>' : '') +
+            '<td class="doc-table__actions">' + downloads +
+            '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-edit-line" data-doc-edit="' + r.id + '" title="Éditer">Éditer</button>' +
+            '</td>' +
+            '</tr>';
+        }).join('');
     }).join('');
 
     zone.innerHTML = '<div class="doc-table-wrap"><table class="doc-table"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+
+    zone.querySelectorAll('button[data-doc-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = Number(btn.getAttribute('data-doc-edit'));
+        var row = pageData.documents.rows.find(function (r) { return r.id === id; });
+        if (row) openDocModal(row);
+      });
+    });
   }
 
   var docSearchInput = document.getElementById('docSearchInput');
@@ -3572,6 +3678,137 @@
     docSearchInput.focus();
   });
   docReloadBtn.addEventListener('click', loadDocuments);
+
+  var docModalOverlay = document.getElementById('docModalOverlay');
+  var docModalTitle = document.getElementById('docModalTitle');
+  var docModalForm = document.getElementById('docModalForm');
+  var docModalStatus = document.getElementById('docModalStatus');
+  var docModalSubmit = document.getElementById('docModalSubmitBtn');
+  var docDrop = document.getElementById('docDrop');
+  var docDropFile = document.getElementById('docDropFile');
+  var docFileInput = document.getElementById('docFileInput');
+  var docTitreInput = document.getElementById('docTitreInput');
+  var docTypeInput = document.getElementById('docTypeInput');
+  var docTypeList = document.getElementById('docTypeList');
+  var docDescInput = document.getElementById('docDescInput');
+
+  function refreshDocDropLabel() {
+    var current = docEditing && docEditing.files.length ? docEditing.files.map(function (f) { return f.name; }).join(', ') : '';
+    if (docPendingFile) {
+      docDropFile.textContent = 'Nouveau fichier : ' + docPendingFile.name + (docEditing && current ? ' (remplacera : ' + current + ')' : '');
+    } else {
+      docDropFile.textContent = current ? 'Fichier actuel : ' + current : 'Aucun fichier sélectionné';
+    }
+  }
+
+  function setDocFile(file) {
+    docPendingFile = file || null;
+    refreshDocDropLabel();
+  }
+
+  function openDocModal(row) {
+    docEditing = row || null;
+    docPendingFile = null;
+    docModalTitle.textContent = docEditing ? 'Modifier le document' : 'Ajouter un document';
+    docModalSubmit.textContent = docEditing ? 'Enregistrer' : 'Ajouter';
+    docModalStatus.textContent = '';
+    docModalSubmit.disabled = false;
+    docTitreInput.value = docEditing ? docEditing.rawTitre : '';
+    docTypeInput.value = docEditing ? textOfRef(docEditing.categorie) : '';
+    docDescInput.value = docEditing ? textOf(docEditing.description) : '';
+    document.getElementById('docTitreGroup').hidden = !docColPresent.titre;
+    document.getElementById('docTypeGroup').hidden = !docColPresent.categorie;
+    document.getElementById('docDescGroup').hidden = !docColPresent.description;
+    docTypeList.innerHTML = getAllFieldValues('documents', 'categorie').map(function (v) {
+      return '<option value="' + escapeHtml(v) + '"></option>';
+    }).join('');
+    refreshDocDropLabel();
+    docModalOverlay.hidden = false;
+  }
+
+  function closeDocModal() {
+    docModalOverlay.hidden = true;
+    docEditing = null;
+    docPendingFile = null;
+    docFileInput.value = '';
+  }
+
+  function uploadDocFile(file) {
+    return grist.docApi.getAccessToken({ readOnly: false }).then(function (tok) {
+      var fd = new FormData();
+      fd.append('upload', file, file.name);
+      return fetch(tok.baseUrl + '/attachments?auth=' + encodeURIComponent(tok.token), { method: 'POST', body: fd });
+    }).then(function (resp) {
+      if (!resp.ok) throw new Error('Envoi du fichier impossible (erreur ' + resp.status + ').');
+      return resp.json();
+    }).then(function (ids) {
+      if (!ids || !ids.length) throw new Error('Envoi du fichier impossible.');
+      return ids[0];
+    });
+  }
+
+  function submitDocModal() {
+    if (!docEditing && !docPendingFile) {
+      docModalStatus.textContent = 'Sélectionnez un fichier.';
+      return;
+    }
+    var fields = {};
+    if (docColPresent.titre) fields[DOCUMENTS_COLS.titre] = docTitreInput.value.trim() || (docPendingFile ? docPendingFile.name : '');
+    if (docColPresent.categorie) fields[DOCUMENTS_COLS.categorie] = docTypeInput.value.trim();
+    if (docColPresent.description) fields[DOCUMENTS_COLS.description] = docDescInput.value.trim();
+    docModalSubmit.disabled = true;
+    docModalStatus.textContent = docPendingFile ? 'Envoi du fichier…' : 'Enregistrement…';
+    var upload = docPendingFile
+      ? uploadDocFile(docPendingFile).then(function (attId) { fields[DOCUMENTS_COLS.pj] = ['L', attId]; })
+      : Promise.resolve();
+    upload.then(function () {
+      var action = docEditing
+        ? ['UpdateRecord', DOCUMENTS_TABLE, docEditing.id, fields]
+        : ['AddRecord', DOCUMENTS_TABLE, null, fields];
+      return grist.docApi.applyUserActions([action]);
+    }).then(function () {
+      closeDocModal();
+      loadDocuments();
+    }).catch(function (e) {
+      docModalSubmit.disabled = false;
+      docModalStatus.textContent = 'Échec : ' + friendlyErrorMessage(e);
+    });
+  }
+
+  document.getElementById('docNewBtn').addEventListener('click', function () { openDocModal(null); });
+  document.getElementById('docModalCloseBtn').addEventListener('click', closeDocModal);
+  document.getElementById('docModalCancelBtn').addEventListener('click', closeDocModal);
+  docModalOverlay.addEventListener('click', function (e) { if (e.target === docModalOverlay) closeDocModal(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !docModalOverlay.hidden) closeDocModal();
+  });
+  docModalForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    submitDocModal();
+  });
+  docDrop.addEventListener('click', function () { docFileInput.click(); });
+  docDrop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); docFileInput.click(); }
+  });
+  docFileInput.addEventListener('change', function () {
+    if (docFileInput.files.length) setDocFile(docFileInput.files[0]);
+    docFileInput.value = '';
+  });
+  ['dragenter', 'dragover'].forEach(function (evt) {
+    docDrop.addEventListener(evt, function (e) {
+      e.preventDefault();
+      docDrop.classList.add('is-over');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (evt) {
+    docDrop.addEventListener(evt, function (e) {
+      e.preventDefault();
+      docDrop.classList.remove('is-over');
+    });
+  });
+  docDrop.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files.length) setDocFile(e.dataTransfer.files[0]);
+  });
 
   // ---- Fenêtre "Nouvelle demande" ------------------------------------------
   // Formulaire de création d'une demande (AddRecord), partagé entre les

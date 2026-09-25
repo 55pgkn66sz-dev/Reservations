@@ -1479,7 +1479,8 @@
 </div>
 
 <footer class="widget-footer" role="contentinfo">
-  <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026</p>
+  <!-- Numéro de version : à mettre à jour ici (#widgetVersion) à chaque livraison : la décimale pour une petite modification (1.0 -> 1.1), le nombre pour une modification structurelle (1.x -> 2.0). -->
+  <p class="widget-footer__credit">Conçu avec ❤️ par l'ADJ LECLERCQ Gauthier - 2026 · <span id="widgetVersion">Version 1.0</span></p>
   <a class="fr-link fr-icon-external-link-line fr-link--icon-right" href="https://grist.numerique.gouv.fr/o/sgr-drj-rgif/forms/ft2KFq6RVvuCGAQadxN8G1/97" target="_blank" rel="noopener external" title="Contacter l'équipe projet - ouvre une nouvelle fenêtre">Contacter l'équipe projet</a>
 </footer>
 
@@ -3491,7 +3492,21 @@
   }
 
   var DOCUMENTS_TABLE = 'Documents';
-  var DOCUMENTS_COLS = { titre: 'Titre', categorie: 'Type', description: 'Description', pj: 'PJ', maj: 'Derniere_mise_a_jour' };
+  var DOCUMENTS_COLS = { titre: ['Document', 'Nom du document', 'Titre', 'Nom'], categorie: ['Type'], description: ['Description'], pj: ['PJ'], maj: ['Derniere_mise_a_jour'] };
+  var docColId = {};
+  function docColKey(v) { return normalizeKey(v).replace(/[_\s]+/g, ' '); }
+  function resolveDocCols(data) {
+    Object.keys(DOCUMENTS_COLS).forEach(function (role) {
+      docColId[role] = null;
+      DOCUMENTS_COLS[role].forEach(function (name) {
+        if (docColId[role]) return;
+        Object.keys(data).forEach(function (key) {
+          if (!docColId[role] && docColKey(key) === docColKey(name)) docColId[role] = key;
+        });
+      });
+      docColPresent[role] = !!docColId[role];
+    });
+  }
   var DOC_UNCATEGORIZED = 'Autres documents';
   var documentSearchText = '';
   var docColPresent = {};
@@ -3517,14 +3532,14 @@
       var data = res[0];
       var att = res[1];
       var tok = res[2];
-      Object.keys(DOCUMENTS_COLS).forEach(function (role) { docColPresent[role] = !!data[DOCUMENTS_COLS[role]]; });
+      resolveDocCols(data);
       var files = {};
       for (var i = 0; i < att.id.length; i++) {
         files[att.id[i]] = { id: att.id[i], name: att.fileName[i], size: att.fileSize[i] };
       }
       var rows = (data.id || []).map(function (id, idx) {
         function cell(role) {
-          var col = data[DOCUMENTS_COLS[role]];
+          var col = docColId[role] ? data[docColId[role]] : null;
           return col ? col[idx] : null;
         }
         var recFiles = [];
@@ -3728,13 +3743,23 @@
     return grist.docApi.getAccessToken({ readOnly: false }).then(function (tok) {
       var fd = new FormData();
       fd.append('upload', file, file.name);
-      return fetch(tok.baseUrl + '/attachments?auth=' + encodeURIComponent(tok.token), { method: 'POST', body: fd });
-    }).then(function (resp) {
-      if (!resp.ok) throw new Error('Envoi du fichier impossible (erreur ' + resp.status + ').');
-      return resp.json();
-    }).then(function (ids) {
-      if (!ids || !ids.length) throw new Error('Envoi du fichier impossible.');
-      return ids[0];
+      return fetch(tok.baseUrl + '/attachments?auth=' + encodeURIComponent(tok.token), {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      }).then(function (resp) {
+        if (!resp.ok) {
+          return resp.text().then(function (t) { throw new Error('HTTP ' + resp.status + (t ? ' — ' + t.slice(0, 200) : '')); });
+        }
+        return resp.json();
+      }, function () {
+        throw new Error('le navigateur a bloqué l’envoi du fichier vers Grist.');
+      });
+    }).then(function (result) {
+      var first = Array.isArray(result) ? result[0] : result;
+      var id = (first && typeof first === 'object') ? first.id : first;
+      if (!id) throw new Error('Réponse inattendue de Grist lors de l’envoi du fichier.');
+      return id;
     });
   }
 
@@ -3744,13 +3769,13 @@
       return;
     }
     var fields = {};
-    if (docColPresent.titre) fields[DOCUMENTS_COLS.titre] = docTitreInput.value.trim() || (docPendingFile ? docPendingFile.name : '');
-    if (docColPresent.categorie) fields[DOCUMENTS_COLS.categorie] = docTypeSelect.value === DOC_TYPE_NEW ? docTypeInput.value.trim() : docTypeSelect.value;
-    if (docColPresent.description) fields[DOCUMENTS_COLS.description] = docDescInput.value.trim();
+    if (docColPresent.titre) fields[docColId.titre] = docTitreInput.value.trim() || (docPendingFile ? docPendingFile.name : '');
+    if (docColPresent.categorie) fields[docColId.categorie] = docTypeSelect.value === DOC_TYPE_NEW ? docTypeInput.value.trim() : docTypeSelect.value;
+    if (docColPresent.description) fields[docColId.description] = docDescInput.value.trim();
     docModalSubmit.disabled = true;
     docModalStatus.textContent = docPendingFile ? 'Envoi du fichier…' : 'Enregistrement…';
     var upload = docPendingFile
-      ? uploadDocFile(docPendingFile).then(function (attId) { fields[DOCUMENTS_COLS.pj] = ['L', attId]; })
+      ? uploadDocFile(docPendingFile).then(function (attId) { fields[docColId.pj] = ['L', attId]; })
       : Promise.resolve();
     upload.then(function () {
       var action = docEditing

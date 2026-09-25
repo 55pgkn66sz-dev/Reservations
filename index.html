@@ -359,6 +359,10 @@
   .req-table-view .doc-table tbody tr:hover td { background: transparent; }
   table.req-table.doc-table th, table.req-table.doc-table td { vertical-align: middle; }
   table.req-table.doc-table thead th { font-size: 0.75em; }
+  @media (min-width: 40.01rem) {
+    table.req-table.doc-table .req-actions { flex-wrap: nowrap; }
+    table.req-table.doc-table .req-actions .fr-btn { padding: 0.25rem 0.4rem; min-height: 0; }
+  }
   .doc-table__actions { white-space: nowrap; text-align: right !important; }
   .doc-table__actions .fr-btn { padding: 0.25rem 0.4rem; min-height: 0; }
   .doc-table tbody .doc-table__group th { background: #eeeef9; color: var(--bleu-france); font-size: 0.9em; font-weight: 700; }
@@ -462,20 +466,6 @@
   .req-table-view tbody tr[data-status="attente"] { background-color: var(--statut-pastel-attente); }
   .req-table-view tbody tr[data-status="percu"] { background-color: var(--statut-pastel-percu); }
   .req-table-view tbody tr[data-status="reintegre"] { background-color: var(--statut-pastel-reintegre); }
-  /* Boutons d'action "au repos" (ni en surbrillance/actif, ni l'inter-
-     rupteur Perçu/Réintégré déjà teinté par son propre statut ci-dessus) :
-     fond blanc translucide, pour qu'un bouton tertiaire (transparent par
-     défaut) reste bien visible une fois la ligne teintée, plutôt que de
-     se fondre dans le pastel — "Éditer" (jamais teinté) en profite aussi.
-     Les boutons déjà à fond plein (Valider/Refuser/Attente actifs,
-     interrupteur Perçu/Réintégré en surbrillance) restent inchangés : ils
-     contrastent déjà avec le pastel de la même famille de teinte. */
-  .req-table-view tbody tr[data-status] .req-actions .fr-btn:not([aria-pressed="true"]):not(.req-switch) {
-    background-color: rgba(255, 255, 255, 0.55);
-  }
-  .req-table-view tbody tr[data-status] .req-actions .req-switch:not([data-status="percu"]):not([data-status="reintegre"]) {
-    background-color: rgba(255, 255, 255, 0.55);
-  }
 
   /* ---- Vue mobile (écran étroit, en dessous de 40rem / ~640px) --------
      Le tableau des demandes / du parc, pensé pour défiler horizontale-
@@ -2916,11 +2906,11 @@
       // deux rendus ci-dessous (tableau écran large / carte mobile), qui ne
       // diffèrent que par leur emplacement (voir actionsTable/actionsCard).
       var actionButtonsHtml =
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
-        '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>';
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-check-line" title="' + escapeHtml(valideeTitle) + '" data-action="validee" aria-pressed="' + (isValidee ? 'true' : 'false') + '" ' + (!canValider ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-close-line" title="' + escapeHtml(refuseeTitle) + '" data-action="refusee" aria-pressed="' + (isRefusee ? 'true' : 'false') + '" ' + (!canRefuser ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-time-line" title="' + escapeHtml(attenteTitle) + '" data-action="attente" aria-pressed="' + (isAttente ? 'true' : 'false') + '" ' + (!canAttente ? 'disabled' : '') + '></button>' +
+        '<button type="button" role="switch" class="req-switch req-switch--percu fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + percuReintegreIcon + '" title="' + escapeHtml(percuReintegreTitle) + '" data-action="' + (percuReintegreAction || 'percu') + '" data-status="' + percuSwitchStatus + '" aria-checked="' + (percuReintegreChecked ? 'true' : 'false') + '" ' + (!percuReintegreAction ? 'disabled' : '') + '></button>' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-edit-line" title="Éditer la demande" data-action="edit"></button>';
       var actionsTable = '<div class="req-actions" role="group" aria-label="Actions">' + actionButtonsHtml + '</div>';
       // Sur la carte mobile, le badge "Conflit" (s'il y a lieu) rejoint les
       // icônes d'action plutôt que le champ Véhicule/Matériel sollicité ou
@@ -2973,7 +2963,7 @@
     // CSS) ; "Matériel accordé" n'existe que sur la page matériels, quand la
     // colonne lui est réglée. "Actions" en première colonne.
     var headCells = ['Actions', 'Demandeur', objetSoliciteLabel, 'Période', 'Motif'];
-    var colWidths = [20, 12, 18, 16, hasMaterielAccorde ? 20 : 34];
+    var colWidths = [22, 12, 18, 16, hasMaterielAccorde ? 18 : 32];
     if (hasMaterielAccorde) { headCells.push('Matériel accordé'); colWidths.push(14); }
     var head = '<tr>' + headCells.map(function (label, i) {
       return '<th scope="col" style="width:' + colWidths[i] + '%">' + label + '</th>';
@@ -3090,7 +3080,7 @@
         '<td data-label="Identifiant">' + escapeHtml(textOf(r.identifiant)) + '</td>' +
         '<td data-label="' + escapeHtml(typeLabel) + '">' + escapeHtml(textOf(r.type)) + '</td>' +
         '<td data-label="Disponibilité">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm ' + toggleIcon + ' fr-btn--icon-left gestion-etat-btn" data-action="toggle-etat" title="' + escapeHtml(toggleTitle) + '">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm ' + toggleIcon + ' fr-btn--icon-left gestion-etat-btn" data-action="toggle-etat" title="' + escapeHtml(toggleTitle) + '">' +
         '<span class="fr-badge fr-badge--sm ' + badgeClass + '">' + escapeHtml(etatDisplay) + '</span>' +
         '</button>' +
         '</td>' +

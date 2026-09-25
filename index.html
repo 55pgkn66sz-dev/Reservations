@@ -3650,6 +3650,7 @@
             (withMaj ? '<td>' + escapeHtml(formatDocDate(r.maj)) + '</td>' : '') +
             '<td class="doc-table__actions">' + downloads +
             '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-edit-line" data-doc-edit="' + r.id + '" title="Éditer">Éditer</button>' +
+            '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-delete-line" data-doc-delete="' + r.id + '" title="Supprimer">Supprimer</button>' +
             '</td>' +
             '</tr>';
         }).join('');
@@ -3663,6 +3664,22 @@
         var row = pageData.documents.rows.find(function (r) { return r.id === id; });
         if (row) openDocModal(row);
       });
+    });
+    zone.querySelectorAll('button[data-doc-delete]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = Number(btn.getAttribute('data-doc-delete'));
+        var row = pageData.documents.rows.find(function (r) { return r.id === id; });
+        if (row) deleteDocument(row);
+      });
+    });
+  }
+
+  function deleteDocument(row) {
+    if (!window.confirm('Supprimer définitivement le document « ' + row.titre + ' » ?')) return;
+    grist.docApi.applyUserActions([['RemoveRecord', DOCUMENTS_TABLE, row.id]]).then(function () {
+      loadDocuments();
+    }).catch(function (e) {
+      window.alert('Suppression impossible : ' + friendlyErrorMessage(e));
     });
   }
 

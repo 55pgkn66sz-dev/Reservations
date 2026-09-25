@@ -356,6 +356,9 @@
   }
   .doc-table__name { font-weight: 700; }
   .doc-table tbody tr:hover td { background: #f6f6fb; }
+  .req-table-view .doc-table tbody tr:hover td { background: transparent; }
+  table.req-table.doc-table th, table.req-table.doc-table td { vertical-align: middle; }
+  table.req-table.doc-table thead th { font-size: 0.75em; }
   .doc-table__actions { white-space: nowrap; text-align: right !important; }
   .doc-table__actions .fr-btn { padding: 0.25rem 0.4rem; min-height: 0; }
   .doc-table tbody .doc-table__group th { background: #eeeef9; color: var(--bleu-france); font-size: 0.9em; font-weight: 700; }
@@ -552,6 +555,8 @@
       margin-bottom: 1rem;
     }
     table.req-table tbody tr:last-child { margin-bottom: 0; }
+    .req-table-wrap { border: 0; border-radius: 0; background: transparent; overflow: visible; }
+    table.req-table.doc-table tbody tr:hover td { background: transparent; }
     table.req-table tbody tr[data-status="disponible"] { border-left-color: var(--statut-validee); background: var(--uv-pastel-full); }
     table.req-table tbody tr[data-status="indisponible"] { border-left-color: var(--statut-refusee); background: var(--uv-pastel-over); }
 
@@ -2980,11 +2985,10 @@
     // et plus fiable que de dériver visuellement l'un de l'autre en CSS
     // pur, puisque les deux présentations diffèrent sensiblement.
     zone.innerHTML =
-      '<div class="fr-table fr-table--bordered req-table-view">' +
-      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
-      '<table class="req-table"><caption class="fr-sr-only">Demandes de réservation</caption>' +
+      '<div class="doc-table-wrap req-table-wrap req-table-view">' +
+      '<table class="req-table doc-table"><caption class="fr-sr-only">Demandes de réservation</caption>' +
       '<thead>' + head + '</thead><tbody>' + tableBody + '</tbody>' +
-      '</table></div></div></div></div>' +
+      '</table></div>' +
       '<div class="req-cards req-cards-view">' + cardsHtml + '</div>';
 
     zone.querySelectorAll('button[data-action]').forEach(function (btn) {
@@ -3094,12 +3098,10 @@
     }).join('');
 
     zone.innerHTML =
-      '<div class="fr-table fr-table--bordered">' +
-      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
-      '<table class="req-table"><caption class="fr-sr-only">' + escapeHtml(itemLabel) + '</caption>' +
+      '<div class="doc-table-wrap req-table-wrap">' +
+      '<table class="req-table doc-table"><caption class="fr-sr-only">' + escapeHtml(itemLabel) + '</caption>' +
       '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
       '</table>' +
-      '</div></div></div>' +
       '</div>';
 
     zone.querySelectorAll('button[data-action="toggle-etat"]').forEach(function (btn) {
@@ -3175,10 +3177,10 @@
       return '<tr data-row-id="' + r.id + '">' +
         '<td data-label="Actions">' +
         '<div class="req-actions" role="group" aria-label="Actions">' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-edit-line" data-action="edit-infra" title="Modifier cette infrastructure">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-edit-line" data-action="edit-infra" title="Modifier cette infrastructure">' +
         '<span class="fr-sr-only">Modifier cette infrastructure</span>' +
         '</button>' +
-        '<button type="button" class="fr-btn fr-btn--tertiary fr-btn--sm fr-icon-delete-line" data-action="delete-infra" title="Supprimer cette infrastructure">' +
+        '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-delete-line" data-action="delete-infra" title="Supprimer cette infrastructure">' +
         '<span class="fr-sr-only">Supprimer cette infrastructure</span>' +
         '</button>' +
         '</div>' +
@@ -3190,12 +3192,10 @@
     }).join('');
 
     zone.innerHTML =
-      '<div class="fr-table fr-table--bordered">' +
-      '<div class="fr-table__wrapper"><div class="fr-table__container"><div class="fr-table__content">' +
-      '<table class="req-table"><caption class="fr-sr-only">Infrastructures d’hébergement</caption>' +
+      '<div class="doc-table-wrap req-table-wrap">' +
+      '<table class="req-table doc-table"><caption class="fr-sr-only">Infrastructures d’hébergement</caption>' +
       '<thead>' + head + '</thead><tbody>' + body + '</tbody>' +
       '</table>' +
-      '</div></div></div>' +
       '</div>';
 
     zone.querySelectorAll('button[data-action="edit-infra"]').forEach(function (btn) {

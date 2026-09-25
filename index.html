@@ -366,6 +366,7 @@
     border: 2px dashed var(--border-default-grey); border-radius: 0.5rem; background: #f7f7fb;
   }
   .doc-drop:hover, .doc-drop:focus, .doc-drop.is-over { border-color: var(--bleu-france); background: #f0f0ff; }
+  #docTypeInput[hidden], #docModalOverlay .fr-input-group[hidden] { display: none; }
   .doc-drop__main { margin: 0; font-weight: 700; }
   .doc-drop__file { margin: 0; font-size: 0.9em; color: var(--text-mention-grey); overflow-wrap: anywhere; }
 
@@ -1460,9 +1461,9 @@
         <input class="fr-input" type="text" id="docTitreInput" autocomplete="off">
       </div>
       <div class="fr-input-group" id="docTypeGroup">
-        <label class="fr-label" for="docTypeInput">Type</label>
-        <input class="fr-input" type="text" id="docTypeInput" list="docTypeList" autocomplete="off">
-        <datalist id="docTypeList"></datalist>
+        <label class="fr-label" for="docTypeSelect">Type</label>
+        <select class="fr-select" id="docTypeSelect"></select>
+        <input class="fr-input fr-mt-1w" type="text" id="docTypeInput" placeholder="Nom du nouveau type" autocomplete="off" hidden>
       </div>
       <div class="fr-input-group" id="docDescGroup">
         <label class="fr-label" for="docDescInput">Description</label>
@@ -3497,14 +3498,6 @@
   var docEditing = null;
   var docPendingFile = null;
 
-  function formatFileSize(bytes) {
-    var n = Number(bytes);
-    if (!n || isNaN(n)) return '';
-    if (n < 1024) return n + ' o';
-    if (n < 1024 * 1024) return Math.round(n / 1024) + ' Ko';
-    return (n / (1024 * 1024)).toFixed(1).replace('.', ',') + ' Mo';
-  }
-
   function formatDocDate(v) {
     if (typeof v === 'number') {
       var d = new Date(v * 1000);
@@ -3607,7 +3600,7 @@
 
     var withDesc = rows.some(function (r) { return textOf(r.description); });
     var withMaj = docColPresent.maj;
-    var colCount = 3 + (withDesc ? 1 : 0) + (withMaj ? 1 : 0);
+    var colCount = 2 + (withDesc ? 1 : 0) + (withMaj ? 1 : 0);
 
     var groups = {};
     var groupOrder = [];
@@ -3624,7 +3617,6 @@
 
     var head = '<th>Nom du document</th>' +
       (withDesc ? '<th>Description</th>' : '') +
-      '<th>Fichier</th>' +
       (withMaj ? '<th>Dernière mise à jour</th>' : '') +
       '<th class="doc-table__actions">Actions</th>';
 
@@ -3634,19 +3626,12 @@
       });
       return '<tr class="doc-table__group"><th colspan="' + colCount + '" scope="colgroup">' + escapeHtml(cat) + '</th></tr>' +
         list.map(function (r) {
-          var fileCell = r.files.length
-            ? r.files.map(function (f) {
-                var size = formatFileSize(f.size);
-                return escapeHtml(f.name) + (size ? ' · ' + size : '');
-              }).join('<br>')
-            : '—';
           var downloads = r.files.map(function (f) {
             return '<a class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-download-line" href="' + escapeHtml(f.url) + '" target="_blank" rel="noopener noreferrer" download="' + escapeHtml(f.name) + '" title="Télécharger ' + escapeHtml(f.name) + '">Télécharger ' + escapeHtml(f.name) + '</a>';
           }).join('');
           return '<tr>' +
             '<td class="doc-table__name">' + escapeHtml(r.titre) + '</td>' +
             (withDesc ? '<td>' + escapeHtml(textOf(r.description)) + '</td>' : '') +
-            '<td>' + fileCell + '</td>' +
             (withMaj ? '<td>' + escapeHtml(formatDocDate(r.maj)) + '</td>' : '') +
             '<td class="doc-table__actions">' + downloads +
             '<button type="button" class="fr-btn fr-btn--tertiary-no-outline fr-btn--sm fr-icon-edit-line" data-doc-edit="' + r.id + '" title="Éditer">Éditer</button>' +
@@ -3689,7 +3674,8 @@
   var docFileInput = document.getElementById('docFileInput');
   var docTitreInput = document.getElementById('docTitreInput');
   var docTypeInput = document.getElementById('docTypeInput');
-  var docTypeList = document.getElementById('docTypeList');
+  var docTypeSelect = document.getElementById('docTypeSelect');
+  var DOC_TYPE_NEW = '__new__';
   var docDescInput = document.getElementById('docDescInput');
 
   function refreshDocDropLabel() {
@@ -3714,14 +3700,19 @@
     docModalStatus.textContent = '';
     docModalSubmit.disabled = false;
     docTitreInput.value = docEditing ? docEditing.rawTitre : '';
-    docTypeInput.value = docEditing ? textOfRef(docEditing.categorie) : '';
     docDescInput.value = docEditing ? textOf(docEditing.description) : '';
     document.getElementById('docTitreGroup').hidden = !docColPresent.titre;
     document.getElementById('docTypeGroup').hidden = !docColPresent.categorie;
     document.getElementById('docDescGroup').hidden = !docColPresent.description;
-    docTypeList.innerHTML = getAllFieldValues('documents', 'categorie').map(function (v) {
-      return '<option value="' + escapeHtml(v) + '"></option>';
-    }).join('');
+    var types = getAllFieldValues('documents', 'categorie');
+    var currentType = docEditing ? textOfRef(docEditing.categorie) : '';
+    if (currentType && types.indexOf(currentType) === -1) types.push(currentType);
+    docTypeSelect.innerHTML = '<option value="">(aucun)</option>' +
+      types.map(function (v) { return '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>'; }).join('') +
+      '<option value="' + DOC_TYPE_NEW + '">+ Nouveau type…</option>';
+    docTypeSelect.value = currentType;
+    docTypeInput.value = '';
+    docTypeInput.hidden = true;
     refreshDocDropLabel();
     docModalOverlay.hidden = false;
   }
@@ -3754,7 +3745,7 @@
     }
     var fields = {};
     if (docColPresent.titre) fields[DOCUMENTS_COLS.titre] = docTitreInput.value.trim() || (docPendingFile ? docPendingFile.name : '');
-    if (docColPresent.categorie) fields[DOCUMENTS_COLS.categorie] = docTypeInput.value.trim();
+    if (docColPresent.categorie) fields[DOCUMENTS_COLS.categorie] = docTypeSelect.value === DOC_TYPE_NEW ? docTypeInput.value.trim() : docTypeSelect.value;
     if (docColPresent.description) fields[DOCUMENTS_COLS.description] = docDescInput.value.trim();
     docModalSubmit.disabled = true;
     docModalStatus.textContent = docPendingFile ? 'Envoi du fichier…' : 'Enregistrement…';
@@ -3785,6 +3776,11 @@
   docModalForm.addEventListener('submit', function (e) {
     e.preventDefault();
     submitDocModal();
+  });
+  docTypeSelect.addEventListener('change', function () {
+    var isNew = docTypeSelect.value === DOC_TYPE_NEW;
+    docTypeInput.hidden = !isNew;
+    if (isNew) docTypeInput.focus();
   });
   docDrop.addEventListener('click', function () { docFileInput.click(); });
   docDrop.addEventListener('keydown', function (e) {
